@@ -26,7 +26,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
 /* Sidebar */
 section[data-testid="stSidebar"] > div:first-child {
-    background: #0d1f12 !important;
+    background: #111111 !important;
     border-right: 1px solid #196B24;
 }
 
@@ -78,8 +78,8 @@ COL_WIDTHS = {
     "ESTADO": 10, "MONTO POR PROYECTO": 16, "OBJETIVO": 50,
     "CONTACTO": 35, "QUIENES PUEDEN PARTICIPAR": 30, "FUENTES": 20,
 }
-GREENS = ["#196B24", "#1a7a27", "#1e8c2e", "#22a034", "#27b33b",
-          "#2ec644", "#3ddb52", "#57e368", "#7aeb87", "#9df2a7"]
+GREENS = ["#196B24", "#1e8c2e", "#27b33b", "#2ec644", "#3ddb52",
+          "#57e368", "#7aeb87", "#9df2a7", "#b8f5c0", "#d4fad9"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -239,20 +239,21 @@ def bar_chart(data: pd.Series, title: str, max_bars: int = 25) -> str:
     rows = ""
     for i, (label, val) in enumerate(data.items()):
         pct = round((val / max_val) * 100, 1)
-        color = GREENS[i % len(GREENS)]
+        intensity = max(0.45, 1 - i * 0.025)
+        color = f'rgba(25, 107, 36, {intensity:.2f})'  # green with decreasing intensity
         rows += (
             '<div style="display:flex;align-items:center;margin-bottom:8px;gap:10px">'
             '<div style="width:175px;font-size:0.77rem;color:#a5d6a7;text-align:right;'
             'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" '
             f'title="{label}">{label}</div>'
-            '<div style="flex:1;background:#1e3d22;border-radius:4px;height:24px;position:relative">'
+            '<div style="flex:1;background:#2a2a2a;border-radius:4px;height:24px;position:relative">'
             f'<div style="width:{pct}%;background:{color};height:100%;border-radius:4px"></div>'
             '<span style="position:absolute;right:8px;top:4px;font-size:0.73rem;'
             f'font-weight:700;color:#e8f5e9">{val}</span>'
             '</div></div>'
         )
     return (
-        '<div style="background:#132b18;border:1px solid #1e5c28;border-radius:10px;padding:22px 24px 18px">'
+        '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:22px 24px 18px">'
         '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#e8f5e9;'
         f'margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #196B24">{title}</div>'
         f'{rows}</div>'
@@ -306,7 +307,7 @@ def donut_chart(data: pd.Series, title: str, top_n: int = 8) -> str:
     )
 
     return (
-        '<div style="background:#132b18;border:1px solid #1e5c28;border-radius:10px;padding:22px 24px 18px">'
+        '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:22px 24px 18px">'
         '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#e8f5e9;'
         f'margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #196B24">{title}</div>'
         '<div style="display:flex;gap:20px;align-items:center">'
@@ -318,7 +319,7 @@ def donut_chart(data: pd.Series, title: str, top_n: int = 8) -> str:
 
 def metric_card(label: str, value, sub: str) -> str:
     return (
-        '<div style="background:#132b18;border:1px solid #1e5c28;border-left:4px solid #196B24;'
+        '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-left:4px solid #196B24;'
         'border-radius:8px;padding:20px 22px;margin-bottom:8px">'
         '<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
         f'color:#7db87d;font-weight:600;margin-bottom:4px">{label}</div>'
@@ -336,7 +337,7 @@ def section_title(text: str, sub: str = "") -> str:
     )
     return (
         f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#e8f5e9;'
-        f'margin:28px 0 6px;padding-bottom:8px;border-bottom:2px solid #196B24">{text}</div>'
+        f'margin:28px 0 6px;padding-bottom:8px;border-bottom:2px solid #196B24;letter-spacing:-0.01em">{text}</div>'
         f'{sub_html}'
     )
 
@@ -378,7 +379,7 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 if not uploaded:
     st.markdown(
-        '<div style="background:linear-gradient(135deg,#0d1f12 0%,#196B24 100%);'
+        '<div style="background:linear-gradient(135deg,#111111 0%,#154d1c 100%);'
         'border-radius:12px;padding:38px 42px 34px;margin-bottom:28px">'
         '<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;'
         'color:white;margin:0 0 8px;line-height:1.2">Reporte de Convocatorias</div>'
@@ -395,7 +396,7 @@ if not uploaded:
         (c3, "Reporte Excel", "Una hoja por sector, tablas nombradas, encabezados verdes"),
     ]:
         col.markdown(
-            '<div style="background:#132b18;border:1px solid #1e5c28;border-left:4px solid #196B24;'
+            '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-left:4px solid #196B24;'
             'border-radius:8px;padding:20px 22px">'
             '<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
             f'color:#7db87d;font-weight:600;margin-bottom:6px">{lbl}</div>'
@@ -451,7 +452,7 @@ if sel_estados:
 # HERO + KPIs
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
-    '<div style="background:linear-gradient(135deg,#0d1f12 0%,#196B24 100%);'
+    '<div style="background:linear-gradient(135deg,#111111 0%,#154d1c 100%);'
     'border-radius:12px;padding:34px 40px 30px;margin-bottom:24px">'
     '<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;'
     'color:white;margin:0 0 6px;line-height:1.2">Reporte de Convocatorias</div>'
@@ -461,8 +462,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# KPIs siempre sobre base_f (antes del explode) para no inflar conteos
-n_conv     = len(base_f)
+# KPIs siempre sobre base_f (antes del explode) — conteo único por ID
+n_conv     = base_f['ID'].nunique() if 'ID' in base_f.columns else len(base_f)
 n_vigentes = (
     len(base_f[base_f["ESTADO"].astype(str).str.upper().str.contains("VIGENTE", na=False)])
     if "ESTADO" in base_f.columns else 0
