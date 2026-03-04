@@ -79,15 +79,19 @@ def _read_named_table(file_bytes: bytes, table_name: str) -> pd.DataFrame:
     """
     Lee una tabla de Excel por nombre usando openpyxl.
     Equivalente a: pl.read_excel(file, table_name=table_name)
+
+    Nota: en openpyxl 3.1.x ws.tables[name] devuelve el ref como string,
+    no el objeto Table. Se usa ws.tables.values() para obtener los objetos
+    y comparar por .name.
     """
     wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
     for ws in wb.worksheets:
-        if table_name in ws.tables:
-            ref = ws.tables[table_name].ref
-            data = list(ws[ref])
-            headers = [cell.value for cell in data[0]]
-            rows = [[cell.value for cell in row] for row in data[1:]]
-            return pd.DataFrame(rows, columns=headers)
+        for tbl in ws.tables.values():
+            if tbl.name == table_name:
+                data = list(ws[tbl.ref])
+                headers = [cell.value for cell in data[0]]
+                rows = [[cell.value for cell in row] for row in data[1:]]
+                return pd.DataFrame(rows, columns=headers)
     raise ValueError(
         f"No se encontró la tabla '{table_name}' en el archivo. "
         f"Verifica que el Excel contenga una tabla con ese nombre exacto."
