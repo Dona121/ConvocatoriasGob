@@ -24,30 +24,40 @@ st.markdown("""
 
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 
+/* Sidebar */
 section[data-testid="stSidebar"] > div:first-child {
-    background: #0d1f12;
+    background: #0d1f12 !important;
     border-right: 1px solid #196B24;
 }
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] div { color: #e8f5e9 !important; }
 
-.stTabs [data-baseweb="tab-list"] { border-bottom: 2px solid #196B24; gap: 4px; }
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    border-bottom: 2px solid #196B24; gap: 4px;
+    background: transparent;
+}
 .stTabs [data-baseweb="tab"] {
     font-weight: 600; font-size: 0.85rem;
-    color: #6a8c6a; border-radius: 6px 6px 0 0; padding: 8px 20px;
+    border-radius: 6px 6px 0 0; padding: 8px 20px;
+    background: transparent;
 }
 .stTabs [aria-selected="true"] {
-    background: #196B24 !important; color: white !important;
+    background: #196B24 !important; color: #ffffff !important;
 }
 
+/* Download button */
 .stDownloadButton > button {
     background: #196B24 !important; color: white !important;
     border: none !important; border-radius: 8px !important;
     font-weight: 600 !important; padding: 10px 24px !important;
 }
 .stDownloadButton > button:hover { background: #0d4a18 !important; }
+
+/* Primary button */
+.stButton > button[kind="primary"] {
+    background: #196B24 !important; color: white !important;
+    border: none !important; border-radius: 8px !important;
+    font-weight: 600 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -232,18 +242,18 @@ def bar_chart(data: pd.Series, title: str, max_bars: int = 25) -> str:
         color = GREENS[i % len(GREENS)]
         rows += (
             '<div style="display:flex;align-items:center;margin-bottom:8px;gap:10px">'
-            '<div style="width:175px;font-size:0.77rem;color:#2d4a2d;text-align:right;'
+            '<div style="width:175px;font-size:0.77rem;color:#a5d6a7;text-align:right;'
             'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" '
             f'title="{label}">{label}</div>'
-            '<div style="flex:1;background:#f0f0f0;border-radius:4px;height:24px;position:relative">'
+            '<div style="flex:1;background:#1e3d22;border-radius:4px;height:24px;position:relative">'
             f'<div style="width:{pct}%;background:{color};height:100%;border-radius:4px"></div>'
             '<span style="position:absolute;right:8px;top:4px;font-size:0.73rem;'
-            f'font-weight:700;color:#1a1a1a">{val}</span>'
+            f'font-weight:700;color:#e8f5e9">{val}</span>'
             '</div></div>'
         )
     return (
-        '<div style="background:white;border:1px solid #e0ede0;border-radius:10px;padding:22px 24px 18px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#0d1f12;'
+        '<div style="background:#132b18;border:1px solid #1e5c28;border-radius:10px;padding:22px 24px 18px">'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#e8f5e9;'
         f'margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #196B24">{title}</div>'
         f'{rows}</div>'
     )
@@ -281,7 +291,7 @@ def donut_chart(data: pd.Series, title: str, top_n: int = 8) -> str:
         legend += (
             '<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">'
             f'<div style="width:9px;height:9px;border-radius:50%;background:{color};flex-shrink:0"></div>'
-            '<div style="font-size:0.74rem;color:#2d4a2d;flex:1;white-space:nowrap;'
+            '<div style="font-size:0.74rem;color:#c8e6c9;flex:1;white-space:nowrap;'
             f'overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
             f'<div style="font-size:0.74rem;font-weight:700;color:#196B24">{pct}%</div>'
             '</div>'
@@ -290,14 +300,14 @@ def donut_chart(data: pd.Series, title: str, top_n: int = 8) -> str:
     svg = (
         f'<svg width="150" height="150" viewBox="0 0 150 150">{paths}'
         f'<text x="{cx}" y="{cy + 5}" text-anchor="middle" font-size="17" '
-        f'font-family="DM Serif Display" fill="#0d1f12" font-weight="bold">{total}</text>'
+        f'font-family="DM Serif Display" fill="#e8f5e9" font-weight="bold">{total}</text>'
         f'<text x="{cx}" y="{cy + 18}" text-anchor="middle" font-size="8.5" '
-        f'font-family="DM Sans" fill="#6a8c6a">total</text></svg>'
+        f'font-family="DM Sans" fill="#7db87d">total</text></svg>'
     )
 
     return (
-        '<div style="background:white;border:1px solid #e0ede0;border-radius:10px;padding:22px 24px 18px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#0d1f12;'
+        '<div style="background:#132b18;border:1px solid #1e5c28;border-radius:10px;padding:22px 24px 18px">'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#e8f5e9;'
         f'margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #196B24">{title}</div>'
         '<div style="display:flex;gap:20px;align-items:center">'
         f'<div style="flex-shrink:0">{svg}</div>'
@@ -308,24 +318,24 @@ def donut_chart(data: pd.Series, title: str, top_n: int = 8) -> str:
 
 def metric_card(label: str, value, sub: str) -> str:
     return (
-        '<div style="background:white;border:1px solid #e0ede0;border-left:4px solid #196B24;'
+        '<div style="background:#132b18;border:1px solid #1e5c28;border-left:4px solid #196B24;'
         'border-radius:8px;padding:20px 22px;margin-bottom:8px">'
         '<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
-        f'color:#6a8c6a;font-weight:600;margin-bottom:4px">{label}</div>'
+        f'color:#7db87d;font-weight:600;margin-bottom:4px">{label}</div>'
         '<div style="font-family:\'DM Serif Display\',serif;font-size:2.1rem;'
-        f'color:#0d1f12;line-height:1">{value}</div>'
-        f'<div style="font-size:0.77rem;color:#8aab8a;margin-top:4px">{sub}</div>'
+        f'color:#e8f5e9;line-height:1">{value}</div>'
+        f'<div style="font-size:0.77rem;color:#7db87d;margin-top:4px">{sub}</div>'
         '</div>'
     )
 
 
 def section_title(text: str, sub: str = "") -> str:
     sub_html = (
-        f'<div style="font-size:0.82rem;color:#6a8c6a;margin-bottom:16px">{sub}</div>'
+        f'<div style="font-size:0.82rem;color:#a5d6a7;margin-bottom:16px">{sub}</div>'
         if sub else ""
     )
     return (
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#0d1f12;'
+        f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#e8f5e9;'
         f'margin:28px 0 6px;padding-bottom:8px;border-bottom:2px solid #196B24">{text}</div>'
         f'{sub_html}'
     )
@@ -385,11 +395,11 @@ if not uploaded:
         (c3, "Reporte Excel", "Una hoja por sector, tablas nombradas, encabezados verdes"),
     ]:
         col.markdown(
-            '<div style="background:white;border:1px solid #e0ede0;border-left:4px solid #196B24;'
+            '<div style="background:#132b18;border:1px solid #1e5c28;border-left:4px solid #196B24;'
             'border-radius:8px;padding:20px 22px">'
             '<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
-            f'color:#6a8c6a;font-weight:600;margin-bottom:6px">{lbl}</div>'
-            f'<div style="font-size:0.83rem;color:#4a6a4a">{sub}</div></div>',
+            f'color:#7db87d;font-weight:600;margin-bottom:6px">{lbl}</div>'
+            f'<div style="font-size:0.83rem;color:#a5d6a7">{sub}</div></div>',
             unsafe_allow_html=True,
         )
     st.stop()
@@ -451,21 +461,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# KPIs siempre sobre base_f (antes del explode) para no inflar conteos
+n_conv     = len(base_f)
 n_vigentes = (
     len(base_f[base_f["ESTADO"].astype(str).str.upper().str.contains("VIGENTE", na=False)])
     if "ESTADO" in base_f.columns else 0
 )
-pct_vig = round(n_vigentes / max(len(base_f), 1) * 100)
+pct_vig    = round(n_vigentes / max(n_conv, 1) * 100)
+n_sectores = exp_f["SECTOR"].nunique()   # sectores atómicos activos tras filtro
+n_segmentos = base_f["SEGMENTO"].nunique() if "SEGMENTO" in base_f.columns else 0
 
 k1, k2, k3, k4 = st.columns(4)
-k1.markdown(metric_card("Convocatorias", len(base_f), "en la selección actual"), unsafe_allow_html=True)
-k2.markdown(metric_card("Vigentes", n_vigentes, f"{pct_vig}% del total filtrado"), unsafe_allow_html=True)
-k3.markdown(metric_card("Sectores", exp_f["SECTOR"].nunique(), "categorías activas"), unsafe_allow_html=True)
-k4.markdown(metric_card(
-    "Segmentos",
-    base_f["SEGMENTO"].nunique() if "SEGMENTO" in base_f.columns else "—",
-    "tipos de convocatoria"
-), unsafe_allow_html=True)
+k1.markdown(metric_card("Convocatorias", n_conv,     "registros únicos"), unsafe_allow_html=True)
+k2.markdown(metric_card("Vigentes",      n_vigentes, f"{pct_vig}% del total"), unsafe_allow_html=True)
+k3.markdown(metric_card("Sectores",      n_sectores, "categorías activas"), unsafe_allow_html=True)
+k4.markdown(metric_card("Segmentos",     n_segmentos,"tipos de convocatoria"), unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
