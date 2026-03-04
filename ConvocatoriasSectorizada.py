@@ -3,6 +3,7 @@ import re
 import math
 import pandas as pd
 import streamlit as st
+from openpyxl import load_workbook
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -47,15 +48,14 @@ section[data-testid="stSidebar"] div { color: #e8f5e9 !important; }
     font-weight: 600 !important; padding: 10px 24px !important;
 }
 .stDownloadButton > button:hover { background: #0d4a18 !important; }
-
-div[data-testid="stDataFrame"] thead tr th {
-    background-color: #196B24 !important;
-    color: white !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # ── Constants ──────────────────────────────────────────────────────────────────
+TABLE_NAME = "SeguimientoConvocatorias"
+INVALID_SECTORS = {"", "none", "nan", "n/d", "no especifica",
+                   "verificar", "formuladores-evaluadores", "varios"}
+
 COLS_REPORT = [
     "ID", "NOMBRE DE LA CONVOCATORIA", "SEGMENTO",
     "FECHA DE APERTURA", "FECHA DE CIERRE", "DÍAS DISPONIBLES",
@@ -68,40 +68,61 @@ COL_WIDTHS = {
     "ESTADO": 10, "MONTO POR PROYECTO": 16, "OBJETIVO": 50,
     "CONTACTO": 35, "QUIENES PUEDEN PARTICIPAR": 30, "FUENTES": 20,
 }
-GREEN = "#196B24"
-GREENS = ["#196B24","#1a7a27","#1e8c2e","#22a034","#27b33b",
-          "#2ec644","#3ddb52","#57e368","#7aeb87","#9df2a7"]
+GREENS = ["#196B24", "#1a7a27", "#1e8c2e", "#22a034", "#27b33b",
+          "#2ec644", "#3ddb52", "#57e368", "#7aeb87", "#9df2a7"]
 
 
-# ── Data loading ───────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# DATA LOADING
+# ══════════════════════════════════════════════════════════════════════════════
+def _read_named_table(file_bytes: bytes, table_name: str) -> pd.DataFrame:
+    """
+    Lee una tabla de Excel por nombre usando openpyxl.
+    Equivalente a: pl.read_excel(file, table_name=table_name)
+    """
+    wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
+    for ws in wb.worksheets:
+        if table_name in ws.tables:
+            ref = ws.tables[table_name].ref
+            data = list(ws[ref])
+            headers = [cell.value for cell in data[0]]
+            rows = [[cell.value for cell in row] for row in data[1:]]
+            return pd.DataFrame(rows, columns=headers)
+    raise ValueError(
+        f"No se encontró la tabla '{table_name}' en el archivo. "
+        f"Verifica que el Excel contenga una tabla con ese nombre exacto."
+    )
+
+
 @st.cache_data(show_spinner=False)
-def load_data(file_bytes: bytes) -> tuple[pd.DataFrame, pd.DataFrame]:
+def load_data(file_bytes: bytes):
     """
-    Expects a clean Excel file where SECTOR column already has
-    standardized values like 'Desarrollo - Competitividad'.
-    Returns (base_df, exploded_df).
+    Lee SeguimientoConvocatorias, asume SECTOR ya limpio.
+    Retorna (base_df, exploded_df) donde exploded tiene una fila
+    por cada sector atómico (split por ' - ').
     """
-    df = pd.read_excel(io.BytesIO(file_bytes))
+    df = _read_named_table(file_bytes, TABLE_NAME)
 
-    # Accept either 'SECTOR' or 'SECTOR_LIMPIO' as the sector column
-    if "SECTOR_LIMPIO" in df.columns and "SECTOR" not in df.columns:
-        df = df.rename(columns={"SECTOR_LIMPIO": "SECTOR"})
-    elif "SECTOR_LIMPIO" in df.columns:
-        # Both exist — prefer SECTOR_LIMPIO as the clean one
-        df["SECTOR"] = df["SECTOR_LIMPIO"]
-        df = df.drop(columns=["SECTOR_LIMPIO"])
+    # Normalizar SECTOR
+    df["SECTOR"] = df["SECTOR"].astype(str).str.strip()
+    df = df[~df["SECTOR"].str.lower().isin(INVALID_SECTORS)].copy()
+    df = df.reset_index(drop=True)
 
-    base = df.dropna(subset=["SECTOR"]).copy()
+    base = df.copy()
 
     exploded = base.copy()
     exploded["SECTOR"] = exploded["SECTOR"].str.split(" - ")
     exploded = exploded.explode("SECTOR")
     exploded["SECTOR"] = exploded["SECTOR"].str.strip()
+    exploded = exploded[~exploded["SECTOR"].str.lower().isin(INVALID_SECTORS)]
+    exploded = exploded.reset_index(drop=True)
 
     return base, exploded
 
 
-# ── Excel report builder ───────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# EXCEL REPORT BUILDER
+# ══════════════════════════════════════════════════════════════════════════════
 def build_excel(exploded: pd.DataFrame) -> bytes:
     H_FILL = PatternFill("solid", fgColor="196B24")
     H_FONT = Font(bold=True, color="FFFFFF", name="Arial", size=10)
@@ -118,8 +139,9 @@ def build_excel(exploded: pd.DataFrame) -> bytes:
     wb = Workbook()
     wb.remove(wb.active)
     sectores = sorted(exploded["SECTOR"].unique())
+    available_cols = [c for c in COLS_REPORT if c in exploded.columns]
 
-    # Index sheet
+    # ── Hoja índice ──
     wi = wb.create_sheet("Índice")
     wi.sheet_view.showGridLines = False
     wi["A1"] = "Convocatorias por Sector"
@@ -137,26 +159,27 @@ def build_excel(exploded: pd.DataFrame) -> bytes:
             c.alignment = Alignment(
                 horizontal="center" if ci == 2 else "left", vertical="center"
             )
-    wi.column_dimensions["A"].width = 30
+    wi.column_dimensions["A"].width = 32
     wi.column_dimensions["B"].width = 20
     tbl_i = Table(displayName="Indice", ref=f"A3:B{3 + len(sectores)}")
     tbl_i.tableStyleInfo = TableStyleInfo(name="TableStyleMedium7", showRowStripes=False)
     wi.add_table(tbl_i)
 
-    # Per-sector sheets
-    available_cols = [c for c in COLS_REPORT if c in exploded.columns]
+    # ── Una hoja por sector ──
     for sector in sectores:
         sname = sector[:31].replace("/", "-").replace("\\", "-").replace(":", "")
         ws = wb.create_sheet(sname)
         ws.sheet_view.showGridLines = False
 
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(available_cols))
+        ws.merge_cells(start_row=1, start_column=1,
+                       end_row=1, end_column=len(available_cols))
         tc = ws.cell(row=1, column=1, value=f"Sector: {sector}")
         tc.font = T_FONT
         tc.alignment = Alignment(horizontal="left", vertical="center")
         ws.row_dimensions[1].height = 22
 
-        subset = exploded[exploded["SECTOR"] == sector][available_cols].reset_index(drop=True)
+        subset = (exploded[exploded["SECTOR"] == sector][available_cols]
+                  .reset_index(drop=True))
         nc = ws.cell(row=2, column=1, value=f"{len(subset)} convocatoria(s)")
         nc.font = Font(name="Arial", size=9, color="666666", italic=True)
         ws.row_dimensions[2].height = 14
@@ -183,7 +206,8 @@ def build_excel(exploded: pd.DataFrame) -> bytes:
         ws.freeze_panes = "A4"
         last_col = get_column_letter(len(available_cols))
         tname = "T_" + re.sub(r"[^A-Za-z0-9_]", "_", sector)[:28]
-        tbl = Table(displayName=tname, ref=f"A3:{last_col}{3 + len(subset)}")
+        tbl = Table(displayName=tname,
+                    ref=f"A3:{last_col}{3 + len(subset)}")
         tbl.tableStyleInfo = TableStyleInfo(name="TableStyleMedium7", showRowStripes=False)
         ws.add_table(tbl)
 
@@ -192,7 +216,9 @@ def build_excel(exploded: pd.DataFrame) -> bytes:
     return buf.getvalue()
 
 
-# ── Chart helpers (pure HTML, rendered with st.markdown unsafe_allow_html) ─────
+# ══════════════════════════════════════════════════════════════════════════════
+# HTML CHART HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
 def bar_chart(data: pd.Series, title: str, max_bars: int = 25) -> str:
     data = data.sort_values(ascending=False).head(max_bars)
     max_val = data.max() or 1
@@ -201,19 +227,19 @@ def bar_chart(data: pd.Series, title: str, max_bars: int = 25) -> str:
         pct = round((val / max_val) * 100, 1)
         color = GREENS[i % len(GREENS)]
         rows += (
-            f'<div style="display:flex;align-items:center;margin-bottom:8px;gap:10px">'
-            f'<div style="width:175px;font-size:0.77rem;color:#2d4a2d;text-align:right;'
-            f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" '
+            '<div style="display:flex;align-items:center;margin-bottom:8px;gap:10px">'
+            '<div style="width:175px;font-size:0.77rem;color:#2d4a2d;text-align:right;'
+            'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" '
             f'title="{label}">{label}</div>'
-            f'<div style="flex:1;background:#f0f0f0;border-radius:4px;height:24px;position:relative">'
+            '<div style="flex:1;background:#f0f0f0;border-radius:4px;height:24px;position:relative">'
             f'<div style="width:{pct}%;background:{color};height:100%;border-radius:4px"></div>'
-            f'<span style="position:absolute;right:8px;top:4px;font-size:0.73rem;'
+            '<span style="position:absolute;right:8px;top:4px;font-size:0.73rem;'
             f'font-weight:700;color:#1a1a1a">{val}</span>'
-            f'</div></div>'
+            '</div></div>'
         )
     return (
-        f'<div style="background:white;border:1px solid #e0ede0;border-radius:10px;padding:22px 24px 18px">'
-        f'<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#0d1f12;'
+        '<div style="background:white;border:1px solid #e0ede0;border-radius:10px;padding:22px 24px 18px">'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#0d1f12;'
         f'margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #196B24">{title}</div>'
         f'{rows}</div>'
     )
@@ -249,50 +275,53 @@ def donut_chart(data: pd.Series, title: str, top_n: int = 8) -> str:
         pct = round(val / total * 100, 1)
         color = GREENS[i % len(GREENS)]
         legend += (
-            f'<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">'
+            '<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">'
             f'<div style="width:9px;height:9px;border-radius:50%;background:{color};flex-shrink:0"></div>'
-            f'<div style="font-size:0.74rem;color:#2d4a2d;flex:1;white-space:nowrap;'
+            '<div style="font-size:0.74rem;color:#2d4a2d;flex:1;white-space:nowrap;'
             f'overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
             f'<div style="font-size:0.74rem;font-weight:700;color:#196B24">{pct}%</div>'
-            f'</div>'
+            '</div>'
         )
 
     svg = (
         f'<svg width="150" height="150" viewBox="0 0 150 150">{paths}'
-        f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="17" '
+        f'<text x="{cx}" y="{cy + 5}" text-anchor="middle" font-size="17" '
         f'font-family="DM Serif Display" fill="#0d1f12" font-weight="bold">{total}</text>'
-        f'<text x="{cx}" y="{cy+18}" text-anchor="middle" font-size="8.5" '
+        f'<text x="{cx}" y="{cy + 18}" text-anchor="middle" font-size="8.5" '
         f'font-family="DM Sans" fill="#6a8c6a">total</text></svg>'
     )
 
     return (
-        f'<div style="background:white;border:1px solid #e0ede0;border-radius:10px;padding:22px 24px 18px">'
-        f'<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#0d1f12;'
+        '<div style="background:white;border:1px solid #e0ede0;border-radius:10px;padding:22px 24px 18px">'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1rem;color:#0d1f12;'
         f'margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #196B24">{title}</div>'
-        f'<div style="display:flex;gap:20px;align-items:center">'
+        '<div style="display:flex;gap:20px;align-items:center">'
         f'<div style="flex-shrink:0">{svg}</div>'
         f'<div style="flex:1;overflow:hidden">{legend}</div>'
-        f'</div></div>'
+        '</div></div>'
     )
 
 
 def metric_card(label: str, value, sub: str) -> str:
     return (
-        f'<div style="background:white;border:1px solid #e0ede0;border-left:4px solid #196B24;'
-        f'border-radius:8px;padding:20px 22px;margin-bottom:8px">'
-        f'<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
+        '<div style="background:white;border:1px solid #e0ede0;border-left:4px solid #196B24;'
+        'border-radius:8px;padding:20px 22px;margin-bottom:8px">'
+        '<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
         f'color:#6a8c6a;font-weight:600;margin-bottom:4px">{label}</div>'
-        f'<div style="font-family:\'DM Serif Display\',serif;font-size:2.1rem;'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:2.1rem;'
         f'color:#0d1f12;line-height:1">{value}</div>'
         f'<div style="font-size:0.77rem;color:#8aab8a;margin-top:4px">{sub}</div>'
-        f'</div>'
+        '</div>'
     )
 
 
 def section_title(text: str, sub: str = "") -> str:
-    sub_html = f'<div style="font-size:0.82rem;color:#6a8c6a;margin-bottom:16px">{sub}</div>' if sub else ""
+    sub_html = (
+        f'<div style="font-size:0.82rem;color:#6a8c6a;margin-bottom:16px">{sub}</div>'
+        if sub else ""
+    )
     return (
-        f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#0d1f12;'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#0d1f12;'
         f'margin:28px 0 6px;padding-bottom:8px;border-bottom:2px solid #196B24">{text}</div>'
         f'{sub_html}'
     )
@@ -315,7 +344,10 @@ with st.sidebar:
     uploaded = st.file_uploader(
         "Cargar archivo Excel",
         type=["xlsx"],
-        help="Archivo con la columna SECTOR ya estandarizada",
+        help=(
+            "Debe contener la tabla 'SeguimientoConvocatorias' "
+            "con la columna SECTOR ya estandarizada."
+        ),
     )
 
     if uploaded:
@@ -337,20 +369,21 @@ if not uploaded:
         '<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;'
         'color:white;margin:0 0 8px;line-height:1.2">Reporte de Convocatorias</div>'
         '<div style="color:#a5d6a7;font-size:0.88rem;font-weight:300">'
-        'Carga el archivo Excel desde el panel lateral para generar el dashboard y el reporte por sector.</div>'
+        'Carga el archivo Excel con la tabla SeguimientoConvocatorias '
+        'para generar el dashboard y el reporte por sector.</div>'
         '</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
     for col, lbl, sub in [
-        (c1, "Dashboard", "Gráficas de distribución por sector, segmento y estado"),
-        (c2, "Explorador", "Tabla filtrable con detalle por sector"),
-        (c3, "Reporte Excel", "Una hoja por sector, tablas con nombre, encabezados verdes"),
+        (c1, "Dashboard",     "Gráficas de distribución por sector, segmento y estado"),
+        (c2, "Explorador",    "Tabla filtrable con detalle por sector"),
+        (c3, "Reporte Excel", "Una hoja por sector, tablas nombradas, encabezados verdes"),
     ]:
         col.markdown(
-            f'<div style="background:white;border:1px solid #e0ede0;border-left:4px solid #196B24;'
-            f'border-radius:8px;padding:20px 22px">'
-            f'<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
+            '<div style="background:white;border:1px solid #e0ede0;border-left:4px solid #196B24;'
+            'border-radius:8px;padding:20px 22px">'
+            '<div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;'
             f'color:#6a8c6a;font-weight:600;margin-bottom:6px">{lbl}</div>'
             f'<div style="font-size:0.83rem;color:#4a6a4a">{sub}</div></div>',
             unsafe_allow_html=True,
@@ -361,27 +394,30 @@ if not uploaded:
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD DATA
 # ══════════════════════════════════════════════════════════════════════════════
-with st.spinner("Procesando datos…"):
+with st.spinner("Leyendo tabla SeguimientoConvocatorias…"):
     file_bytes = uploaded.read()
     try:
         base_df, exploded_df = load_data(file_bytes)
+    except ValueError as e:
+        st.error(str(e))
+        st.stop()
     except Exception as e:
-        st.error(f"Error al leer el archivo: {e}")
+        st.error(f"Error inesperado al leer el archivo: {e}")
         st.stop()
 
 if base_df.empty:
-    st.warning("El archivo no contiene registros válidos en la columna SECTOR.")
+    st.warning("La tabla no contiene registros válidos en la columna SECTOR.")
     st.stop()
 
 sectores_all  = sorted(exploded_df["SECTOR"].unique())
 segmentos_all = sorted(base_df["SEGMENTO"].dropna().unique()) if "SEGMENTO" in base_df.columns else []
-estados_all   = sorted(base_df["ESTADO"].dropna().unique()) if "ESTADO" in base_df.columns else []
+estados_all   = sorted(base_df["ESTADO"].dropna().unique())   if "ESTADO"   in base_df.columns else []
 
-# Filters
+# ── Filtros en sidebar ─────────────────────────────────────────────────────────
 with st.sidebar:
     sel_sectores  = st.multiselect("Sector",   sectores_all,  placeholder="Todos")
     sel_segmentos = st.multiselect("Segmento", segmentos_all, placeholder="Todos") if segmentos_all else []
-    sel_estados   = st.multiselect("Estado",   estados_all,   placeholder="Todos") if estados_all else []
+    sel_estados   = st.multiselect("Estado",   estados_all,   placeholder="Todos") if estados_all   else []
 
 exp_f  = exploded_df.copy()
 base_f = base_df.copy()
@@ -398,28 +434,34 @@ if sel_estados:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HERO
+# HERO + KPIs
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown(
-    f'<div style="background:linear-gradient(135deg,#0d1f12 0%,#196B24 100%);'
-    f'border-radius:12px;padding:34px 40px 30px;margin-bottom:24px">'
-    f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;'
-    f'color:white;margin:0 0 6px;line-height:1.2">Reporte de Convocatorias</div>'
-    f'<div style="color:#a5d6a7;font-size:0.87rem;font-weight:300">'
+    '<div style="background:linear-gradient(135deg,#0d1f12 0%,#196B24 100%);'
+    'border-radius:12px;padding:34px 40px 30px;margin-bottom:24px">'
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;'
+    'color:white;margin:0 0 6px;line-height:1.2">Reporte de Convocatorias</div>'
+    '<div style="color:#a5d6a7;font-size:0.87rem;font-weight:300">'
     f'{uploaded.name} &nbsp;·&nbsp; {len(base_df)} registros &nbsp;·&nbsp; '
     f'{len(sectores_all)} sectores</div></div>',
     unsafe_allow_html=True,
 )
 
-# KPIs
-n_vigentes = len(base_f[base_f["ESTADO"].str.upper().str.contains("VIGENTE", na=False)]) if "ESTADO" in base_f.columns else 0
-pct_vig    = round(n_vigentes / max(len(base_f), 1) * 100)
+n_vigentes = (
+    len(base_f[base_f["ESTADO"].astype(str).str.upper().str.contains("VIGENTE", na=False)])
+    if "ESTADO" in base_f.columns else 0
+)
+pct_vig = round(n_vigentes / max(len(base_f), 1) * 100)
 
 k1, k2, k3, k4 = st.columns(4)
 k1.markdown(metric_card("Convocatorias", len(base_f), "en la selección actual"), unsafe_allow_html=True)
 k2.markdown(metric_card("Vigentes", n_vigentes, f"{pct_vig}% del total filtrado"), unsafe_allow_html=True)
 k3.markdown(metric_card("Sectores", exp_f["SECTOR"].nunique(), "categorías activas"), unsafe_allow_html=True)
-k4.markdown(metric_card("Segmentos", base_f["SEGMENTO"].nunique() if "SEGMENTO" in base_f.columns else "—", "tipos de convocatoria"), unsafe_allow_html=True)
+k4.markdown(metric_card(
+    "Segmentos",
+    base_f["SEGMENTO"].nunique() if "SEGMENTO" in base_f.columns else "—",
+    "tipos de convocatoria"
+), unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -430,10 +472,13 @@ tab1, tab2, tab3 = st.tabs(["Dashboard", "Explorador", "Reporte Excel"])
 
 # ─── TAB 1: DASHBOARD ────────────────────────────────────────────────────────
 with tab1:
-    sector_counts = exp_f.groupby("SECTOR")["ID"].nunique().rename("n")
+    sector_counts = exp_f.groupby("SECTOR")["ID"].nunique()
 
-    st.markdown(section_title("Distribución por sector",
-        "Número único de convocatorias asociadas a cada sector"), unsafe_allow_html=True)
+    st.markdown(
+        section_title("Distribución por sector",
+                       "Número único de convocatorias por sector temático"),
+        unsafe_allow_html=True,
+    )
 
     col_a, col_b = st.columns([3, 2])
     with col_a:
@@ -441,24 +486,31 @@ with tab1:
     with col_b:
         st.markdown(donut_chart(sector_counts, "Top 8 sectores"), unsafe_allow_html=True)
         if "SEGMENTO" in base_f.columns and not base_f.empty:
-            seg_c = base_f["SEGMENTO"].value_counts()
-            st.markdown(donut_chart(seg_c, "Por segmento"), unsafe_allow_html=True)
+            st.markdown(
+                donut_chart(base_f["SEGMENTO"].value_counts(), "Por segmento"),
+                unsafe_allow_html=True,
+            )
 
     if "ESTADO" in base_f.columns and not base_f.empty:
         st.markdown(section_title("Estado de las convocatorias"), unsafe_allow_html=True)
-        est_c = base_f["ESTADO"].value_counts()
-        st.markdown(bar_chart(est_c, "Por estado"), unsafe_allow_html=True)
+        st.markdown(
+            bar_chart(base_f["ESTADO"].value_counts(), "Por estado"),
+            unsafe_allow_html=True,
+        )
 
 
 # ─── TAB 2: EXPLORADOR ───────────────────────────────────────────────────────
 with tab2:
-    st.markdown(section_title("Listado de convocatorias",
-        f"{len(base_f)} registros con los filtros aplicados"), unsafe_allow_html=True)
+    st.markdown(
+        section_title("Listado de convocatorias",
+                       f"{len(base_f)} registros con los filtros aplicados"),
+        unsafe_allow_html=True,
+    )
 
     id_col = "ID" if "ID" in base_f.columns else base_f.columns[0]
     show_cols = [c for c in [
         id_col, "NOMBRE DE LA CONVOCATORIA", "SEGMENTO",
-        "ESTADO", "FECHA DE APERTURA", "FECHA DE CIERRE", "SECTOR"
+        "ESTADO", "FECHA DE APERTURA", "FECHA DE CIERRE", "SECTOR",
     ] if c in base_f.columns]
 
     st.dataframe(
@@ -470,8 +522,8 @@ with tab2:
             "ID": st.column_config.NumberColumn("ID", width=60),
             "NOMBRE DE LA CONVOCATORIA": st.column_config.TextColumn("Convocatoria", width=300),
             "SEGMENTO": st.column_config.TextColumn("Segmento", width=180),
-            "ESTADO": st.column_config.TextColumn("Estado", width=100),
-            "SECTOR": st.column_config.TextColumn("Sector", width=220),
+            "ESTADO":   st.column_config.TextColumn("Estado",   width=100),
+            "SECTOR":   st.column_config.TextColumn("Sector",   width=240),
         },
     )
 
@@ -483,18 +535,24 @@ with tab2:
             det = det[det["ESTADO"].isin(sel_estados)]
         det_cols = [c for c in [
             id_col, "NOMBRE DE LA CONVOCATORIA", "SEGMENTO", "ESTADO",
-            "FECHA DE APERTURA", "FECHA DE CIERRE", "MONTO POR PROYECTO"
+            "FECHA DE APERTURA", "FECHA DE CIERRE", "MONTO POR PROYECTO",
         ] if c in det.columns]
         st.caption(f"{len(det)} convocatoria(s) en el sector **{sel_det}**")
-        st.dataframe(det[det_cols].reset_index(drop=True),
-                     use_container_width=True, height=300, hide_index=True)
+        st.dataframe(
+            det[det_cols].reset_index(drop=True),
+            use_container_width=True, height=300, hide_index=True,
+        )
 
 
 # ─── TAB 3: REPORTE EXCEL ────────────────────────────────────────────────────
 with tab3:
-    st.markdown(section_title("Generar reporte Excel",
-        "Una hoja por sector · Encabezados #196B24 · Tablas nombradas · Filas blancas"),
-        unsafe_allow_html=True)
+    st.markdown(
+        section_title(
+            "Generar reporte Excel",
+            "Una hoja por sector · Encabezados #196B24 · Tablas de Excel nombradas · Filas blancas",
+        ),
+        unsafe_allow_html=True,
+    )
 
     export_mode = st.radio(
         "Datos a exportar",
@@ -509,7 +567,6 @@ with tab3:
         .rename(columns={"SECTOR": "Sector", "ID": "N° Convocatorias"})
         .sort_values("Sector")
     )
-
     with st.expander(
         f"Vista previa — {preview['Sector'].nunique()} hojas · "
         f"{preview['N° Convocatorias'].sum()} registros totales"
