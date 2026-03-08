@@ -15,7 +15,7 @@ st.set_page_config(page_title="Convocatorias & Proyectos SDP",
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 
 /* Custom Scrollbar */
@@ -24,34 +24,52 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 ::-webkit-scrollbar-thumb { background: #47b1d5; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #1754ab; }
 
-/* Diseño del panel lateral izquierdo (Oscuro Corporativo) */
+/* 🎨 Diseño del panel lateral izquierdo (Ultra Oscuro como en la referencia) */
 section[data-testid="stSidebar"]>div:first-child{
-    background: #003d6c !important;
-    border-right: 3px solid #47b1d5 !important;
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.08);
+    background: #041e35 !important; /* Azul muy oscuro */
+    border-right: none !important;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
 }
 section[data-testid="stSidebar"] label {
     color: #ffffff !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 /* Botón secundario en el sidebar */
 section[data-testid="stSidebar"] .stButton>button {
     background: #1754ab !important;
     color: #ffffff !important;
-    border: 1px solid #47b1d5 !important;
+    border: none !important;
     transition: all 0.3s ease;
+    border-radius: 6px !important;
 }
 section[data-testid="stSidebar"] .stButton>button:hover {
     background: #47b1d5 !important;
-    color: #003d6c !important;
-    border-color: #47b1d5 !important;
+    color: #041e35 !important;
 }
 
-/* Pestañas */
-.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #47b1d5;gap:4px}
-.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#003d6c}
-.stTabs [aria-selected="true"]{background:#47b1d5!important;color:#fff!important}
+/* 🎨 Pestañas Minimalistas (Estilo referencia) */
+.stTabs [data-baseweb="tab-list"]{
+    border-bottom: 1px solid #e0e0e0;
+    gap: 24px;
+}
+.stTabs [data-baseweb="tab"]{
+    font-weight: 600; 
+    font-size: .88rem; 
+    border-radius: 0;
+    padding: 10px 4px; 
+    background: transparent !important; 
+    color: #888888; 
+    border: none;
+}
+.stTabs [aria-selected="true"]{
+    background: transparent !important; 
+    color: #003d6c !important;
+    border-bottom: 3px solid #e68878 !important; /* Acento salmón corporativo */
+}
 
-/* Botones con micro-interacciones (hover) - Principal */
+/* Botones Principales */
 .stDownloadButton>button,.stButton>button[kind="primary"]{
     background:#17743d!important;
     color:white!important;border:none!important;
@@ -62,6 +80,14 @@ section[data-testid="stSidebar"] .stButton>button:hover {
     background:#005931!important;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 89, 49, 0.3) !important;
+}
+
+/* Estilos de tabla DataFrame para que se vea más limpia */
+[data-testid="stDataFrame"] {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid #e0e0e0;
 }
 </style>""", unsafe_allow_html=True)
 
@@ -113,11 +139,11 @@ def fmt_money(val):
 
 # ── UI Helpers ────────────────────────────────────────────────────────────────
 def _card(content, title=None):
-    hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.05rem;color:#003d6c;'
-           f'margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #17743d">{title}</div>'
+    hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.1rem;color:#003d6c;'
+           f'margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #e0e0e0">{title}</div>'
            if title else "")
     return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;'
-            f'border-radius:10px;padding:18px 20px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.03)">{hdr}{content}</div>')
+            f'border-radius:10px;padding:22px 24px;box-shadow:0 2px 8px rgba(0,0,0,0.02)">{hdr}{content}</div>')
 
 def empty_state(texto):
     return f'<div style="padding:30px 20px; text-align:center; color:#003d6c; background:#f0f8fb; border:1px dashed #47b1d5; border-radius:8px; margin: 10px 0;">{texto}</div>'
@@ -131,11 +157,11 @@ def bar_chart(data, title, max_bars=20, fmt_val=None):
         pct = round(val/mx*100,1)
         color = BRAND_COLORS[i % len(BRAND_COLORS)]
         disp = fmt_val(val) if fmt_val else (f"{int(val):,}" if float(val)==int(float(val)) else f"{val:,.1f}")
-        rows += (f'<div style="display:flex;align-items:center;margin-bottom:8px;gap:9px">'
-                 f'<div style="width:175px;font-size:.73rem;color:#003d6c;font-weight:500;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="{label}">{label}</div>'
-                 f'<div style="flex:1;background:#f0f0f0;border-radius:4px;height:22px;position:relative">'
+        rows += (f'<div style="display:flex;align-items:center;margin-bottom:10px;gap:12px">'
+                 f'<div style="width:175px;font-size:.75rem;color:#444;font-weight:500;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="{label}">{label}</div>'
+                 f'<div style="flex:1;background:#f5f5f5;border-radius:4px;height:24px;position:relative">'
                  f'<div style="width:{pct}%;background:{color};height:100%;border-radius:4px"></div>'
-                 f'<span style="position:absolute;right:7px;top:4px;font-size:.71rem;font-weight:700;color:#333333">{disp}</span>'
+                 f'<span style="position:absolute;right:8px;top:4px;font-size:.72rem;font-weight:700;color:#333333">{disp}</span>'
                  f'</div></div>')
     return _card(rows, title)
 
@@ -161,30 +187,51 @@ def donut_chart(data, title, top_n=8):
     for i,(label,val) in enumerate(top.items()):
         pct=round(val/total*100,1)
         color_dot = BRAND_COLORS[i%len(BRAND_COLORS)]
-        legend+=(f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
-                 f'<div style="width:10px;height:10px;border-radius:50%;background:{color_dot};flex-shrink:0"></div>'
-                 f'<div style="font-size:.72rem;color:#444444;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
-                 f'<div style="font-size:.72rem;font-weight:700;color:#003d6c">{pct}%</div></div>')
-    svg=(f'<svg width="100%" style="max-width:136px; height:auto" viewBox="0 0 136 136">{paths}'
-         f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="16" font-family="DM Serif Display" fill="#003d6c" font-weight="bold">{int(total)}</text>'
-         f'<text x="{cx}" y="{cy+17}" text-anchor="middle" font-size="8" font-family="DM Sans" fill="#666666">total</text></svg>')
-    inner=(f'<div style="display:flex;gap:16px;align-items:center">'
+        legend+=(f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+                 f'<div style="width:12px;height:12px;border-radius:50%;background:{color_dot};flex-shrink:0"></div>'
+                 f'<div style="font-size:.75rem;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
+                 f'<div style="font-size:.75rem;font-weight:700;color:#003d6c">{pct}%</div></div>')
+    svg=(f'<svg width="100%" style="max-width:140px; height:auto" viewBox="0 0 136 136">{paths}'
+         f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="18" font-family="DM Serif Display" fill="#003d6c" font-weight="bold">{int(total)}</text>'
+         f'<text x="{cx}" y="{cy+18}" text-anchor="middle" font-size="9" font-family="DM Sans" fill="#888">total</text></svg>')
+    inner=(f'<div style="display:flex;gap:20px;align-items:center">'
            f'<div style="flex-shrink:0">{svg}</div>'
            f'<div style="flex:1;overflow:hidden">{legend}</div></div>')
     return _card(inner, title)
 
-def kpi(label, value, sub="", tooltip=""):
+def kpi(label, value, sub="", tooltip="", style="white", border_color="#47b1d5"):
     tt = tooltip if tooltip else f"{label}: {sub}"
-    return (f'<div title="{tt}" style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #47b1d5;'
-            f'border-radius:8px;padding:16px 18px;margin-bottom:6px;box-shadow:0 3px 8px rgba(0,0,0,0.03)">'
-            f'<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#1754ab;font-weight:700;margin-bottom:4px">{label}</div>'
-            f'<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;color:#003d6c;line-height:1">{value}</div>'
-            f'<div style="font-size:.75rem;color:#666666;margin-top:5px">{sub}</div></div>')
+    
+    # Lógica de estilos basados en la imagen de referencia
+    if style == "dark-blue":
+        bg = "#003d6c"
+        text_c = "#ffffff"
+        label_c = "#47b1d5"
+        sub_c = "#a5d6a7"
+        border = "none"
+    elif style == "dark-green":
+        bg = "#005931"
+        text_c = "#ffffff"
+        label_c = "#7aeb87"
+        sub_c = "#a5d6a7"
+        border = "none"
+    else: # Estilo blanco por defecto
+        bg = "#ffffff"
+        text_c = "#003d6c"
+        label_c = "#1754ab"
+        sub_c = "#666666"
+        border = f"1px solid #e0e0e0; border-left: 5px solid {border_color};"
+
+    return (f'<div title="{tt}" style="background:{bg}; {border if border != "none" else ""}'
+            f'border-radius:10px;padding:20px 22px;margin-bottom:8px;box-shadow:0 4px 10px rgba(0,0,0,0.05); height: 95%;">'
+            f'<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:{label_c};font-weight:700;margin-bottom:6px">{label}</div>'
+            f'<div style="font-family:\'DM Serif Display\',serif;font-size:2.4rem;color:{text_c};line-height:1">{value}</div>'
+            f'<div style="font-size:.78rem;color:{sub_c};margin-top:8px">{sub}</div></div>')
 
 def sec_title(text, sub=""):
-    s=(f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.35rem;'
-       f'color:#003d6c;margin:28px 0 6px;padding-bottom:8px;border-bottom:2px solid #17743d">{text}</div>')
-    if sub: s+=f'<div style="font-size:.8rem;color:#555555;margin-bottom:14px">{sub}</div>'
+    s=(f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.45rem;'
+       f'color:#003d6c;margin:32px 0 8px;padding-bottom:10px;border-bottom:2px solid #17743d">{text}</div>')
+    if sub: s+=f'<div style="font-size:.85rem;color:#666;margin-bottom:16px">{sub}</div>'
     return s
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -319,10 +366,10 @@ def load_all():
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown(
-        '<div style="padding:14px 0 16px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.6rem;color:#ffffff;line-height:1.1">SDP</div>'
-        '<div style="color:#47b1d5;font-size:.8rem;font-weight:600;margin-top:4px">Convocatorias & Proyectos</div></div>'
-        '<hr style="border-color:#1754ab;margin-bottom:14px">', unsafe_allow_html=True)
+        '<div style="padding:16px 0 20px">'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.8rem;color:#ffffff;line-height:1.1">SDP</div>'
+        '<div style="color:#47b1d5;font-size:.85rem;font-weight:400;margin-top:6px">Convocatorias & Proyectos</div></div>'
+        '<hr style="border-color:#1754ab;opacity:0.3;margin-bottom:18px">', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD
@@ -345,11 +392,11 @@ sectores_opts = sorted({s.strip() for row in df_conv["Sectores"] if row
 dep_opts      = sorted(df_proy["Dependencia"].dropna().unique()) if not df_proy.empty else []
 
 with st.sidebar:
-    st.markdown('<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#47b1d5;font-weight:700;margin-bottom:8px">Filtros</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#a5d6a7;font-weight:700;margin-bottom:10px">Filtros</div>', unsafe_allow_html=True)
     sel_est  = st.multiselect("Estado convocatoria", estados_opts,  placeholder="Todos")
     sel_sec  = st.multiselect("Sector",              sectores_opts, placeholder="Todos")
     sel_dep  = st.multiselect("Dependencia",         dep_opts,      placeholder="Todas")
-    st.markdown('<hr style="border-color:#1754ab;margin:14px 0 10px">', unsafe_allow_html=True)
+    st.markdown('<hr style="border-color:#1754ab;opacity:0.3;margin:20px 0 16px">', unsafe_allow_html=True)
     if st.button("Refrescar", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
@@ -376,31 +423,35 @@ m_conv=df_c["Monto"].sum() if not df_c.empty else 0
 v_proy=df_p["Valor"].sum() if not df_p.empty else 0
 n_ind=len(df_i) if not df_i.empty else 0
 conv_cp=df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
-pct_cp=round(conv_cp/max(n_conv,1)*100)
+pct_cp=round(conv_cp/max(n_conv,1)*100) if n_conv > 0 else 0
 
+# Hero Banner adaptado a la nueva referencia (Azul a Verde oscuro)
 st.markdown(
-    '<div style="background:linear-gradient(135deg,#003d6c 0%,#1754ab 100%);border-radius:12px;padding:30px 36px 26px;margin-bottom:20px;box-shadow:0 6px 15px rgba(23,84,171,0.2)">'
-    '<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;color:#ffffff;margin:0 0 6px">Convocatorias & Proyectos SDP</div>'
-    '<div style="color:#47b1d5;font-size:.85rem;font-weight:500;letter-spacing:0.02em">Datos en tiempo real · Supabase · actualización cada 5 min</div></div>',
+    '<div style="background:linear-gradient(135deg, #003d6c 0%, #005931 100%);border-radius:12px;padding:34px 40px 30px;margin-bottom:24px;box-shadow:0 6px 15px rgba(0,0,0,0.1)">'
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:2.2rem;color:#ffffff;margin:0 0 8px">Seguimiento de Convocatorias & Proyectos</div>'
+    '<div style="color:#a5d6a7;font-size:.9rem;font-weight:400;letter-spacing:0.02em">Matriz de seguimiento de proyectos por dependencia · Actualización en tiempo real</div></div>',
     unsafe_allow_html=True)
 
-k1,k2,k3,k4,k5,k6 = st.columns(6)
-k1.markdown(kpi("Convocatorias", n_conv, "registros", "Total de convocatorias encontradas"), unsafe_allow_html=True)
-k2.markdown(kpi("Proyectos", n_proy, "registros", "Total de proyectos formulados"), unsafe_allow_html=True)
-k3.markdown(kpi("Con proyectos", f"{conv_cp}", f"{pct_cp}% de conv.", "Convocatorias que tienen al menos un proyecto"), unsafe_allow_html=True)
-k4.markdown(kpi("Monto convoc.", fmt_money(m_conv), "suma total", "Suma total del presupuesto de las convocatorias"), unsafe_allow_html=True)
-k5.markdown(kpi("Valor proyectos", fmt_money(v_proy), "suma total", "Suma del valor total de todos los proyectos"), unsafe_allow_html=True)
-k6.markdown(kpi("Indicadores MGA", n_ind, "registros", "Número de indicadores asociados"), unsafe_allow_html=True)
+# Layout asimétrico: Las tarjetas de fondo sólido son un poco más anchas
+k1, k2, k3, k4, k5, k6 = st.columns([1.5, 1.5, 1, 1, 1, 1])
+
+k1.markdown(kpi("Total Convocatorias", n_conv, "en los filtros activos", "Total de convocatorias encontradas", style="dark-blue"), unsafe_allow_html=True)
+k2.markdown(kpi("Proyectos", n_proy, "formulados / dependencias", "Total de proyectos formulados", style="dark-green"), unsafe_allow_html=True)
+k3.markdown(kpi("Con proyectos", f"{conv_cp}", f"{pct_cp}% de conv.", border_color="#d88c16"), unsafe_allow_html=True)
+k4.markdown(kpi("Monto convoc.", fmt_money(m_conv), "suma total", border_color="#cf7000"), unsafe_allow_html=True)
+k5.markdown(kpi("Valor proy.", fmt_money(v_proy), "suma total", border_color="#47b1d5"), unsafe_allow_html=True)
+k6.markdown(kpi("Indicadores", n_ind, "MGA asociados", border_color="#1754ab"), unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
+st.markdown("<br>", unsafe_allow_html=True) # Pequeño respiro antes de los tabs
 tab1,tab2,tab3,tab4,tab5 = st.tabs([
-    "Convocatorias", "Proyectos", "Relaciones", "Indicadores MGA", "Reporte Excel"])
+    "Resumen general", "Proyectos formulados", "Relaciones matriciales", "Detalle Indicadores MGA", "Exportar"])
 
 # ─── TAB 1 CONVOCATORIAS ──────────────────────────────────────────────────────
 with tab1:
-    st.markdown(sec_title("Convocatorias", f"{n_conv} registros"), unsafe_allow_html=True)
+    st.markdown(sec_title("Convocatorias", f"{n_conv} registros activos en el tablero"), unsafe_allow_html=True)
     if not df_c.empty:
         ca,cb = st.columns([3,2])
         with ca:
@@ -421,7 +472,7 @@ with tab1:
             st.markdown(bar_chart(df_c.groupby("Estado")["Monto"].sum().sort_values(ascending=False),
                 "Monto por estado",fmt_val=fmt_money), unsafe_allow_html=True)
 
-    st.markdown(sec_title("Listado"), unsafe_allow_html=True)
+    st.markdown(sec_title("Matriz de convocatorias"), unsafe_allow_html=True)
     lc=["Convocatoria","Estado","Fecha apertura","Fecha cierre","Monto","Sectores","Segmentos","Ubicación","N° proyectos","Contacto"]
     lc=[c for c in lc if c in df_c.columns]
     st.dataframe(df_c[lc].reset_index(drop=True), use_container_width=True, height=400, hide_index=True,
@@ -429,15 +480,15 @@ with tab1:
                        "Monto":st.column_config.NumberColumn("Monto $",format="$%,.0f"),
                        "N° proyectos":st.column_config.NumberColumn("Proyectos",width=90)})
 
-    st.markdown(sec_title("Detalle convocatoria"), unsafe_allow_html=True)
+    st.markdown(sec_title("Ficha de la convocatoria"), unsafe_allow_html=True)
     if not df_c.empty:
-        sel=st.selectbox("Selecciona",df_c["Convocatoria"].tolist(),key="dc")
+        sel=st.selectbox("Selecciona para expandir",df_c["Convocatoria"].tolist(),key="dc")
         if sel:
             row=df_c[df_c["Convocatoria"]==sel].iloc[0]
             d1,d2,d3,d4=st.columns(4)
             d1.metric("Estado",row["Estado"]); d2.metric("Monto",fmt_money(row["Monto"]))
             d3.metric("Proyectos",int(row["N° proyectos"])); d4.metric("Apertura",row["Fecha apertura"])
-            with st.expander("Descripción completa"):
+            with st.expander("Ver descripción y requisitos completos"):
                 for f in ["Qué ofrece","Quiénes participan","Público priorizado","Sectores","Segmentos","Ubicación","Dependencias","Contacto"]:
                     if f in row and str(row[f]).strip() and str(row[f]) not in ("—",""):
                         st.markdown(f"**{f}:** {row[f]}")
@@ -452,7 +503,7 @@ with tab1:
 
 # ─── TAB 2 PROYECTOS ──────────────────────────────────────────────────────────
 with tab2:
-    st.markdown(sec_title("Proyectos", f"{n_proy} registros"), unsafe_allow_html=True)
+    st.markdown(sec_title("Proyectos", f"{n_proy} proyectos formulados en sistema"), unsafe_allow_html=True)
     if not df_p.empty:
         pa,pb=st.columns([3,2])
         with pa:
@@ -470,7 +521,7 @@ with tab2:
             if not ben_dep.empty:
                 st.markdown(bar_chart(ben_dep.sort_values(ascending=False),"Beneficiarios por dependencia"), unsafe_allow_html=True)
 
-    st.markdown(sec_title("Listado"), unsafe_allow_html=True)
+    st.markdown(sec_title("Matriz de proyectos"), unsafe_allow_html=True)
     ps=["Proyecto","BPIN","Valor","Contrapartida","Dependencia","Responsable","Municipios","Total beneficiarios","N° indicadores MGA"]
     ps=[c for c in ps if c in df_p.columns]
     st.dataframe(df_p[ps].reset_index(drop=True), use_container_width=True, height=420, hide_index=True,
@@ -480,21 +531,21 @@ with tab2:
                        "Total beneficiarios":st.column_config.NumberColumn("Beneficiarios",width=110),
                        "N° indicadores MGA":st.column_config.NumberColumn("Indicadores",width=100)})
 
-    st.markdown(sec_title("Detalle proyecto"), unsafe_allow_html=True)
+    st.markdown(sec_title("Ficha del proyecto"), unsafe_allow_html=True)
     if not df_p.empty:
-        sel_p=st.selectbox("Selecciona",df_p["Proyecto"].tolist(),key="dp")
+        sel_p=st.selectbox("Selecciona para expandir",df_p["Proyecto"].tolist(),key="dp")
         if sel_p:
             rp=df_p[df_p["Proyecto"]==sel_p].iloc[0]
             p1,p2,p3,p4=st.columns(4)
             p1.metric("Valor",fmt_money(rp["Valor"])); p2.metric("Contrapartida",fmt_money(rp["Contrapartida"]))
             p3.metric("Beneficiarios",int(rp["Total beneficiarios"])); p4.metric("BPIN",rp["BPIN"])
-            with st.expander("Detalles completos"):
+            with st.expander("Ver variables complementarias"):
                 for f in ["Dependencia","Responsable","Municipios","Tipos beneficiarios","Indicadores MGA"]:
                     if f in rp and str(rp[f]).strip() and str(rp[f]) not in ("—","0",""):
                         st.markdown(f"**{f}:** {rp[f]}")
             ind_sub=df_i[df_i["proyecto_id"]==int(rp["id"])] if not df_i.empty else pd.DataFrame()
             if not ind_sub.empty:
-                st.caption(f"{len(ind_sub)} indicador(es) MGA")
+                st.caption(f"{len(ind_sub)} indicador(es) MGA integrados")
                 ic=["codigo","nombre","vigencia","meta_proyecto","meta_cuatrienio","m2024","m2025","m2026","m2027"]
                 ic=[c for c in ic if c in ind_sub.columns]
                 st.dataframe(ind_sub[ic].reset_index(drop=True), use_container_width=True, height=200, hide_index=True)
@@ -502,9 +553,9 @@ with tab2:
 # ─── TAB 3 RELACIONES ─────────────────────────────────────────────────────────
 with tab3:
     st.markdown(sec_title("Relaciones Convocatoria → Proyecto",
-        "contenido_proyecto.convocatoria_id → contenido_convocatorias.id"), unsafe_allow_html=True)
+        "Trazabilidad matricial de los recursos y coberturas"), unsafe_allow_html=True)
     if df_r.empty:
-        st.markdown(empty_state("No hay relaciones con los filtros actuales."), unsafe_allow_html=True)
+        st.markdown(empty_state("No hay cruces relacionales con los filtros actuales."), unsafe_allow_html=True)
     else:
         ra,rb=st.columns([3,2])
         with ra:
@@ -518,9 +569,9 @@ with tab3:
             cob=df_r["Cobertura (%)"].dropna()
             if not cob.empty:
                 cob_r=pd.cut(cob,bins=[0,25,50,75,100,float("inf")],labels=["0-25%","25-50%","50-75%","75-100%",">100%"])
-                st.markdown(donut_chart(cob_r.value_counts(),"Distribución cobertura"), unsafe_allow_html=True)
+                st.markdown(donut_chart(cob_r.value_counts(),"Distribución de la cobertura financiera"), unsafe_allow_html=True)
 
-        st.markdown(sec_title("Tabla de relaciones"), unsafe_allow_html=True)
+        st.markdown(sec_title("Matriz de trazabilidad"), unsafe_allow_html=True)
         rc=["Convocatoria","Estado convocatoria","Sectores","Proyecto","BPIN","Valor",
             "Dependencia","Responsable","Fecha apertura","Fecha cierre","Cobertura (%)"]
         rc=[c for c in rc if c in df_r.columns]
@@ -532,7 +583,7 @@ with tab3:
 
         sin=df_c[df_c["N° proyectos"]==0] if not df_c.empty else pd.DataFrame()
         if not sin.empty:
-            with st.expander(f"{len(sin)} convocatoria(s) sin proyectos"):
+            with st.expander(f"Alerta: {len(sin)} convocatoria(s) registradas sin proyectos asociados"):
                 sc=["Convocatoria","Estado","Monto","Sectores"]
                 sc=[c for c in sc if c in sin.columns]
                 st.dataframe(sin[sc].reset_index(drop=True), use_container_width=True, hide_index=True)
@@ -540,24 +591,24 @@ with tab3:
 # ─── TAB 4 INDICADORES MGA ────────────────────────────────────────────────────
 with tab4:
     st.markdown(sec_title("Indicadores MGA",
-        "contenido_indicadormga → contenido_clasificacionindicadormga + contenido_clasificacionvigencia"),
+        "Seguimiento de metas físicas e indicadores estándar"),
         unsafe_allow_html=True)
     if df_i.empty:
-        st.markdown(empty_state("No hay indicadores MGA con los filtros actuales."), unsafe_allow_html=True)
+        st.markdown(empty_state("No hay metas físicas documentadas en esta selección."), unsafe_allow_html=True)
     else:
         ia,ib=st.columns([3,2])
         with ia:
-            st.markdown(bar_chart(df_i["nombre"].value_counts().head(15),"Indicadores más usados"), unsafe_allow_html=True)
+            st.markdown(bar_chart(df_i["nombre"].value_counts().head(15),"Frecuencia de uso por indicador"), unsafe_allow_html=True)
             meta_proy=df_i.groupby("nombre")["meta_proyecto"].sum().sort_values(ascending=False).head(12)
             meta_proy=meta_proy[meta_proy>0]
             if not meta_proy.empty:
-                st.markdown(bar_chart(meta_proy,"Meta proyecto por indicador"), unsafe_allow_html=True)
+                st.markdown(bar_chart(meta_proy,"Meta total de proyectos por indicador"), unsafe_allow_html=True)
         with ib:
-            st.markdown(donut_chart(df_i["vigencia"].astype(str).value_counts(),"Por vigencia"), unsafe_allow_html=True)
+            st.markdown(donut_chart(df_i["vigencia"].astype(str).value_counts(),"Distribución por vigencia"), unsafe_allow_html=True)
             ixp=df_i.groupby("Proyecto")["codigo"].count().sort_values(ascending=False).head(10)
-            st.markdown(bar_chart(ixp,"Indicadores por proyecto (top 10)"), unsafe_allow_html=True)
+            st.markdown(bar_chart(ixp,"Top 10 proyectos con más indicadores"), unsafe_allow_html=True)
 
-        st.markdown(sec_title("Tabla de indicadores"), unsafe_allow_html=True)
+        st.markdown(sec_title("Matriz de indicadores"), unsafe_allow_html=True)
         ishow=["Proyecto","codigo","nombre","vigencia","meta_proyecto","meta_cuatrienio","m2024","m2025","m2026","m2027","responsable_mga"]
         ishow=[c for c in ishow if c in df_i.columns]
         st.dataframe(df_i[ishow].rename(columns={
@@ -571,21 +622,25 @@ with tab4:
 
 # ─── TAB 5 REPORTE EXCEL ──────────────────────────────────────────────────────
 with tab5:
-    st.markdown(sec_title("Reporte Excel","4 hojas: Convocatorias · Proyectos · Relaciones · Indicadores MGA"), unsafe_allow_html=True)
-    opt=st.radio("Datos",["Todo (sin filtros)","Solo datos filtrados"],horizontal=True)
-    ec=df_c if opt=="Solo datos filtrados" else df_conv
-    ep=df_p if opt=="Solo datos filtrados" else df_proy
-    er=df_r if opt=="Solo datos filtrados" else df_rel
-    ei=df_i if opt=="Solo datos filtrados" else df_ind
-    x1,x2,x3,x4=st.columns(4)
-    x1.metric("Convocatorias",ec["id"].nunique() if not ec.empty else 0)
-    x2.metric("Proyectos",    ep["id"].nunique() if not ep.empty else 0)
-    x3.metric("Relaciones",   len(er) if not er.empty else 0)
-    x4.metric("Indicadores",  len(ei) if not ei.empty else 0)
+    st.markdown(sec_title("Exportar Reporte Maestro","Generación de sábana de datos consolidada (.xlsx)"), unsafe_allow_html=True)
+    opt=st.radio("Alcance de los datos a exportar",["Exportar universo completo (sin filtros)","Exportar selección actual (datos filtrados)"],horizontal=True)
+    ec=df_c if opt=="Exportar selección actual (datos filtrados)" else df_conv
+    ep=df_p if opt=="Exportar selección actual (datos filtrados)" else df_proy
+    er=df_r if opt=="Exportar selección actual (datos filtrados)" else df_rel
+    ei=df_i if opt=="Exportar selección actual (datos filtrados)" else df_ind
+    
     st.markdown("<br>",unsafe_allow_html=True)
-    if st.button("Generar reporte",type="primary"):
-        with st.spinner("Construyendo Excel..."):
-            H_FILL=PatternFill("solid",fgColor="1754ab")
+    
+    x1,x2,x3,x4=st.columns(4)
+    x1.markdown(kpi("Convocatorias", ec["id"].nunique() if not ec.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
+    x2.markdown(kpi("Proyectos", ep["id"].nunique() if not ep.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
+    x3.markdown(kpi("Relaciones", len(er) if not er.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
+    x4.markdown(kpi("Indicadores", len(ei) if not ei.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
+    
+    st.markdown("<br>",unsafe_allow_html=True)
+    if st.button("Generar reporte de Excel",type="primary"):
+        with st.spinner("Construyendo matriz Excel..."):
+            H_FILL=PatternFill("solid",fgColor="003d6c")
             H_FONT=Font(bold=True,color="FFFFFF",name="Arial",size=10)
             C_FONT=Font(name="Arial",size=9)
             WHITE=PatternFill("solid",fgColor="FFFFFF")
@@ -624,8 +679,8 @@ with tab5:
                 tbl.tableStyleInfo=TableStyleInfo(name="TableStyleMedium7",showRowStripes=False)
                 ws.add_table(tbl)
             buf=io.BytesIO(); wb.save(buf)
-        st.success("Listo.")
-        st.download_button("Descargar Reporte_SDP.xlsx",data=buf.getvalue(),
+        st.success("La matriz ha sido generada con éxito.")
+        st.download_button("Descargar Reporte.xlsx",data=buf.getvalue(),
             file_name="Reporte_SDP.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
