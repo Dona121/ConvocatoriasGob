@@ -18,11 +18,11 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 
-/* 🎨 Reducir el espacio en blanco masivo de Streamlit (Separación Sidebar-Contenido) */
+/* 🎨 Reducir el espacio en blanco lateral, pero respetando la barra superior de Streamlit */
 .block-container {
-    padding-top: 2rem !important;
-    padding-left: 2.5rem !important;
-    padding-right: 2.5rem !important;
+    padding-top: 4.5rem !important; /* <-- Ajustado para que el banner no quede oculto */
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
     padding-bottom: 2rem !important;
     max-width: 100% !important;
 }
