@@ -17,11 +17,30 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
-section[data-testid="stSidebar"]>div:first-child{background:#f8f9fa!important;border-right:1px solid #196B24}
+
+/* 🎨 Diseño del panel lateral izquierdo */
+section[data-testid="stSidebar"]>div:first-child{
+    background: linear-gradient(180deg, #e8f5e9 0%, #f4fbf4 100%) !important;
+    border-right: 1px solid #c8e6c9;
+    box-shadow: inset -3px 0 10px rgba(25, 107, 36, 0.02);
+}
+
+/* Pestañas */
 .stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #196B24;gap:4px}
-.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#333}
+.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#444}
 .stTabs [aria-selected="true"]{background:#196B24!important;color:#fff!important}
-.stDownloadButton>button,.stButton>button[kind="primary"]{background:#196B24!important;color:white!important;border:none!important;border-radius:8px!important;font-weight:600!important;padding:10px 24px!important}
+
+/* Botones con micro-interacciones (hover) */
+.stDownloadButton>button,.stButton>button[kind="primary"]{
+    background:#196B24!important;color:white!important;border:none!important;
+    border-radius:8px!important;font-weight:600!important;padding:10px 24px!important;
+    transition: all 0.3s ease !important;
+}
+.stDownloadButton>button:hover,.stButton>button[kind="primary"]:hover{
+    background:#124d1a!important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(25, 107, 36, 0.2) !important;
+}
 </style>""", unsafe_allow_html=True)
 
 # ── Credentials ───────────────────────────────────────────────────────────────
@@ -282,9 +301,9 @@ def load_all():
 with st.sidebar:
     st.markdown(
         '<div style="padding:12px 0 14px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.28rem;color:#333333">SDP</div>'
-        '<div style="color:#555555;font-size:.77rem;margin-top:2px">Convocatorias & Proyectos</div></div>'
-        '<hr style="border-color:#196B24;margin-bottom:12px">', unsafe_allow_html=True)
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#196B24;line-height:1.2">SDP</div>'
+        '<div style="color:#2e7d32;font-size:.78rem;font-weight:500;margin-top:2px">Convocatorias & Proyectos</div></div>'
+        '<hr style="border-color:#a5d6a7;margin-bottom:12px">', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD
