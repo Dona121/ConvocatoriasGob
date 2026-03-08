@@ -18,16 +18,22 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 
-/* 🎨 Diseño del panel lateral izquierdo (Oscuro Corporativo) */
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #47b1d5; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #1754ab; }
+
+/* Diseño del panel lateral izquierdo (Oscuro Corporativo) */
 section[data-testid="stSidebar"]>div:first-child{
-    background: #003d6c !important; /* Azul oscuro corporativo */
-    border-right: 3px solid #47b1d5 !important; /* Barra separadora cyan */
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.08); /* Sombra para profundidad */
+    background: #003d6c !important;
+    border-right: 3px solid #47b1d5 !important;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.08);
 }
 section[data-testid="stSidebar"] label {
-    color: #ffffff !important; /* Etiquetas de filtros en blanco */
+    color: #ffffff !important;
 }
-/* Botón secundario en el sidebar (Refrescar) */
+/* Botón secundario en el sidebar */
 section[data-testid="stSidebar"] .stButton>button {
     background: #1754ab !important;
     color: #ffffff !important;
@@ -41,19 +47,19 @@ section[data-testid="stSidebar"] .stButton>button:hover {
 }
 
 /* Pestañas */
-.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #47b1d5;gap:4px} /* Base cyan */
+.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #47b1d5;gap:4px}
 .stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#003d6c}
-.stTabs [aria-selected="true"]{background:#47b1d5!important;color:#fff!important} /* Tab activo cyan */
+.stTabs [aria-selected="true"]{background:#47b1d5!important;color:#fff!important}
 
 /* Botones con micro-interacciones (hover) - Principal */
 .stDownloadButton>button,.stButton>button[kind="primary"]{
-    background:#17743d!important; /* Verde corporativo */
+    background:#17743d!important;
     color:white!important;border:none!important;
     border-radius:8px!important;font-weight:600!important;padding:10px 24px!important;
     transition: all 0.3s ease !important;
 }
 .stDownloadButton>button:hover,.stButton>button[kind="primary"]:hover{
-    background:#005931!important; /* Verde oscuro corporativo */
+    background:#005931!important;
     transform: translateY(-2px);
     box-shadow: 0 4px 10px rgba(0, 89, 49, 0.3) !important;
 }
@@ -69,18 +75,9 @@ except Exception:
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlb3JlZHZqcmhjZ3ZucnJ2bmZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzA0MDYsImV4cCI6MjA4ODE0NjQwNn0."
             "h9QNpcbiMXZfeheOAVHtYnC4-n8luCg92s-Xd_BFrZA")
 
-# Paleta Corporativa Secundaria Completa
 BRAND_COLORS = [
-    "#17743d", # Verde principal
-    "#1754ab", # Azul principal
-    "#cf7000", # Naranja oscuro
-    "#47b1d5", # Cyan
-    "#d88c16", # Naranja claro
-    "#005931", # Verde oscuro
-    "#e68878", # Salmón
-    "#003d6c", # Azul oscuro
-    "#d37e00", # Naranja medio
-    "#9b5b1e"  # Café
+    "#17743d", "#1754ab", "#cf7000", "#47b1d5", "#d88c16",
+    "#005931", "#e68878", "#003d6c", "#d37e00", "#9b5b1e"
 ]
 
 # ── Supabase ──────────────────────────────────────────────────────────────────
@@ -114,13 +111,16 @@ def fmt_money(val):
         return f"${v:,.0f}"
     except: return str(val)
 
-# ── Charts ────────────────────────────────────────────────────────────────────
+# ── UI Helpers ────────────────────────────────────────────────────────────────
 def _card(content, title=None):
     hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.05rem;color:#003d6c;'
            f'margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #17743d">{title}</div>'
            if title else "")
     return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;'
             f'border-radius:10px;padding:18px 20px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.03)">{hdr}{content}</div>')
+
+def empty_state(texto):
+    return f'<div style="padding:30px 20px; text-align:center; color:#003d6c; background:#f0f8fb; border:1px dashed #47b1d5; border-radius:8px; margin: 10px 0;">{texto}</div>'
 
 def bar_chart(data, title, max_bars=20, fmt_val=None):
     data = data.dropna().sort_values(ascending=False).head(max_bars)
@@ -165,7 +165,7 @@ def donut_chart(data, title, top_n=8):
                  f'<div style="width:10px;height:10px;border-radius:50%;background:{color_dot};flex-shrink:0"></div>'
                  f'<div style="font-size:.72rem;color:#444444;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
                  f'<div style="font-size:.72rem;font-weight:700;color:#003d6c">{pct}%</div></div>')
-    svg=(f'<svg width="136" height="136" viewBox="0 0 136 136">{paths}'
+    svg=(f'<svg width="100%" style="max-width:136px; height:auto" viewBox="0 0 136 136">{paths}'
          f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="16" font-family="DM Serif Display" fill="#003d6c" font-weight="bold">{int(total)}</text>'
          f'<text x="{cx}" y="{cy+17}" text-anchor="middle" font-size="8" font-family="DM Sans" fill="#666666">total</text></svg>')
     inner=(f'<div style="display:flex;gap:16px;align-items:center">'
@@ -173,8 +173,9 @@ def donut_chart(data, title, top_n=8):
            f'<div style="flex:1;overflow:hidden">{legend}</div></div>')
     return _card(inner, title)
 
-def kpi(label, value, sub=""):
-    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #47b1d5;'
+def kpi(label, value, sub="", tooltip=""):
+    tt = tooltip if tooltip else f"{label}: {sub}"
+    return (f'<div title="{tt}" style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #47b1d5;'
             f'border-radius:8px;padding:16px 18px;margin-bottom:6px;box-shadow:0 3px 8px rgba(0,0,0,0.03)">'
             f'<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#1754ab;font-weight:700;margin-bottom:4px">{label}</div>'
             f'<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;color:#003d6c;line-height:1">{value}</div>'
@@ -191,7 +192,6 @@ def sec_title(text, sub=""):
 # ══════════════════════════════════════════════════════════════════════════════
 @st.cache_data(ttl=300, show_spinner=False)
 def load_all():
-    # Lookups
     estados   = {r["id"]:r["estado"]             for r in _fetch("contenido_estado")}
     deps      = {r["id"]:r["dependencia"]         for r in _fetch("contenido_dependencia")}
     resps     = {r["id"]:r["responsable"]         for r in _fetch("contenido_responsable")}
@@ -211,7 +211,6 @@ def load_all():
                     "resp":   r.get("responsable",""),
                  } for r in _fetch("contenido_clasificacionindicadormga")}
 
-    # M2M
     def m2m(table, fk, vk, vmap):
         d={}
         for r in _fetch(table):
@@ -224,13 +223,11 @@ def load_all():
     conv_dep = m2m("contenido_convocatorias_dependencia","convocatorias_id","dependencia_id",deps)
     proy_mun = m2m("contenido_proyecto_municipios",      "proyecto_id",     "municipios_id", municipios)
 
-    # Beneficiarios
     ben_d={}
     for r in _fetch("contenido_beneficiarios"):
         pid=r.get("proyecto_id")
         if pid: ben_d.setdefault(pid,[]).append({"tipo":clf_ben.get(r.get("beneficiario_id"),"?"),"n":r.get("numero_beneficiarios",0)})
 
-    # Indicadores MGA
     ind_d={}
     for r in _fetch("contenido_indicadormga"):
         pid=r.get("proyecto_id")
@@ -246,7 +243,6 @@ def load_all():
                 "responsable_mga":clf.get("resp",""),
             })
 
-    # CONVOCATORIAS
     conv_rows=_fetch("contenido_convocatorias")
     conv_list=[]
     for r in conv_rows:
@@ -270,7 +266,6 @@ def load_all():
         })
     df_conv = pd.DataFrame(conv_list) if conv_list else pd.DataFrame()
 
-    # PROYECTOS
     proy_rows=_fetch("contenido_proyecto")
     proy_list=[]
     for r in proy_rows:
@@ -294,12 +289,10 @@ def load_all():
         })
     df_proy = pd.DataFrame(proy_list) if proy_list else pd.DataFrame()
 
-    # Contar proyectos por convocatoria
     if not df_conv.empty and not df_proy.empty and "convocatoria_id" in df_proy.columns:
         cnt=df_proy.groupby("convocatoria_id")["id"].count().to_dict()
         df_conv["N° proyectos"]=df_conv["id"].map(cnt).fillna(0).astype(int)
 
-    # INDICADORES (tabla plana)
     ind_rows=[]
     proy_names={r["id"]:r["nombre_proyecto"] for r in proy_rows}
     for pid,inds in ind_d.items():
@@ -307,7 +300,6 @@ def load_all():
             ind_rows.append({"Proyecto":proy_names.get(pid,"—"),"proyecto_id":pid,**i})
     df_ind = pd.DataFrame(ind_rows) if ind_rows else pd.DataFrame()
 
-    # RELACIONES (join)
     if not df_proy.empty and not df_conv.empty and "convocatoria_id" in df_proy.columns:
         df_rel = df_proy.merge(
             df_conv[["id","Convocatoria","Estado","Monto","Sectores","Segmentos","Fecha apertura","Fecha cierre"]],
@@ -335,7 +327,7 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD
 # ══════════════════════════════════════════════════════════════════════════════
-with st.spinner("Conectando con Supabase…"):
+with st.spinner("Conectando con Supabase..."):
     try:
         df_conv, df_proy, df_rel, df_ind = load_all()
     except Exception as e:
@@ -343,7 +335,7 @@ with st.spinner("Conectando con Supabase…"):
         st.stop()
 
 if df_conv.empty and df_proy.empty:
-    st.warning("No se encontraron datos en Supabase.")
+    st.markdown(empty_state("No se encontraron datos en Supabase."), unsafe_allow_html=True)
     st.stop()
 
 # ── Filters ────────────────────────────────────────────────────────────────────
@@ -386,7 +378,6 @@ n_ind=len(df_i) if not df_i.empty else 0
 conv_cp=df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
 pct_cp=round(conv_cp/max(n_conv,1)*100)
 
-# Hero Banner con colores vívidos corporativos
 st.markdown(
     '<div style="background:linear-gradient(135deg,#003d6c 0%,#1754ab 100%);border-radius:12px;padding:30px 36px 26px;margin-bottom:20px;box-shadow:0 6px 15px rgba(23,84,171,0.2)">'
     '<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;color:#ffffff;margin:0 0 6px">Convocatorias & Proyectos SDP</div>'
@@ -394,18 +385,18 @@ st.markdown(
     unsafe_allow_html=True)
 
 k1,k2,k3,k4,k5,k6 = st.columns(6)
-k1.markdown(kpi("Convocatorias",   n_conv,           "registros"),            unsafe_allow_html=True)
-k2.markdown(kpi("Proyectos",       n_proy,           "registros"),            unsafe_allow_html=True)
-k3.markdown(kpi("Con proyectos",   f"{conv_cp}",     f"{pct_cp}% de conv."), unsafe_allow_html=True)
-k4.markdown(kpi("Monto convoc.",   fmt_money(m_conv),"suma total"),           unsafe_allow_html=True)
-k5.markdown(kpi("Valor proyectos", fmt_money(v_proy),"suma total"),           unsafe_allow_html=True)
-k6.markdown(kpi("Indicadores MGA", n_ind,            "registros"),            unsafe_allow_html=True)
+k1.markdown(kpi("Convocatorias", n_conv, "registros", "Total de convocatorias encontradas"), unsafe_allow_html=True)
+k2.markdown(kpi("Proyectos", n_proy, "registros", "Total de proyectos formulados"), unsafe_allow_html=True)
+k3.markdown(kpi("Con proyectos", f"{conv_cp}", f"{pct_cp}% de conv.", "Convocatorias que tienen al menos un proyecto"), unsafe_allow_html=True)
+k4.markdown(kpi("Monto convoc.", fmt_money(m_conv), "suma total", "Suma total del presupuesto de las convocatorias"), unsafe_allow_html=True)
+k5.markdown(kpi("Valor proyectos", fmt_money(v_proy), "suma total", "Suma del valor total de todos los proyectos"), unsafe_allow_html=True)
+k6.markdown(kpi("Indicadores MGA", n_ind, "registros", "Número de indicadores asociados"), unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
 tab1,tab2,tab3,tab4,tab5 = st.tabs([
-    "Convocatorias","Proyectos","Relaciones","Indicadores MGA","Reporte Excel"])
+    "Convocatorias", "Proyectos", "Relaciones", "Indicadores MGA", "Reporte Excel"])
 
 # ─── TAB 1 CONVOCATORIAS ──────────────────────────────────────────────────────
 with tab1:
@@ -513,7 +504,7 @@ with tab3:
     st.markdown(sec_title("Relaciones Convocatoria → Proyecto",
         "contenido_proyecto.convocatoria_id → contenido_convocatorias.id"), unsafe_allow_html=True)
     if df_r.empty:
-        st.info("No hay relaciones con los filtros actuales.")
+        st.markdown(empty_state("No hay relaciones con los filtros actuales."), unsafe_allow_html=True)
     else:
         ra,rb=st.columns([3,2])
         with ra:
@@ -552,7 +543,7 @@ with tab4:
         "contenido_indicadormga → contenido_clasificacionindicadormga + contenido_clasificacionvigencia"),
         unsafe_allow_html=True)
     if df_i.empty:
-        st.info("No hay indicadores MGA con los filtros actuales.")
+        st.markdown(empty_state("No hay indicadores MGA con los filtros actuales."), unsafe_allow_html=True)
     else:
         ia,ib=st.columns([3,2])
         with ia:
@@ -593,8 +584,8 @@ with tab5:
     x4.metric("Indicadores",  len(ei) if not ei.empty else 0)
     st.markdown("<br>",unsafe_allow_html=True)
     if st.button("Generar reporte",type="primary"):
-        with st.spinner("Construyendo Excel…"):
-            H_FILL=PatternFill("solid",fgColor="1754ab") # Azul corporativo para los headers de Excel
+        with st.spinner("Construyendo Excel..."):
+            H_FILL=PatternFill("solid",fgColor="1754ab")
             H_FONT=Font(bold=True,color="FFFFFF",name="Arial",size=10)
             C_FONT=Font(name="Arial",size=9)
             WHITE=PatternFill("solid",fgColor="FFFFFF")
@@ -637,3 +628,9 @@ with tab5:
         st.download_button("Descargar Reporte_SDP.xlsx",data=buf.getvalue(),
             file_name="Reporte_SDP.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FOOTER
+# ══════════════════════════════════════════════════════════════════════════════
+st.markdown('<hr style="border-color:#e0e0e0;margin-top:40px;margin-bottom:10px">', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center; padding:10px; font-size:0.85rem; color:#888;">Secretaría de Planeación - Reporte de Convocatorias</div>', unsafe_allow_html=True)
