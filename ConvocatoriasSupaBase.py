@@ -20,26 +20,27 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 
 /* 🎨 Diseño del panel lateral izquierdo */
 section[data-testid="stSidebar"]>div:first-child{
-    background: linear-gradient(180deg, #e8f5e9 0%, #f4fbf4 100%) !important;
-    border-right: 1px solid #c8e6c9;
-    box-shadow: inset -3px 0 10px rgba(25, 107, 36, 0.02);
+    background: linear-gradient(180deg, #f0f8fb 0%, #ffffff 100%) !important; /* Tint cyan muy suave */
+    border-right: 1px solid #47b1d5; /* Acento cyan corporativo */
+    box-shadow: inset -3px 0 10px rgba(71, 177, 213, 0.05);
 }
 
 /* Pestañas */
-.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #196B24;gap:4px}
-.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#444}
-.stTabs [aria-selected="true"]{background:#196B24!important;color:#fff!important}
+.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #1754ab;gap:4px}
+.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#003d6c}
+.stTabs [aria-selected="true"]{background:#1754ab!important;color:#fff!important} /* Azul corporativo */
 
 /* Botones con micro-interacciones (hover) */
 .stDownloadButton>button,.stButton>button[kind="primary"]{
-    background:#196B24!important;color:white!important;border:none!important;
+    background:#17743d!important; /* Verde corporativo */
+    color:white!important;border:none!important;
     border-radius:8px!important;font-weight:600!important;padding:10px 24px!important;
     transition: all 0.3s ease !important;
 }
 .stDownloadButton>button:hover,.stButton>button[kind="primary"]:hover{
-    background:#124d1a!important;
+    background:#005931!important; /* Verde oscuro corporativo */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(25, 107, 36, 0.2) !important;
+    box-shadow: 0 4px 10px rgba(0, 89, 49, 0.3) !important;
 }
 </style>""", unsafe_allow_html=True)
 
@@ -53,8 +54,19 @@ except Exception:
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlb3JlZHZqcmhjZ3ZucnJ2bmZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzA0MDYsImV4cCI6MjA4ODE0NjQwNn0."
             "h9QNpcbiMXZfeheOAVHtYnC4-n8luCg92s-Xd_BFrZA")
 
-GREENS = ["#196B24","#1e8c2e","#27b33b","#3ddb52","#57e368",
-          "#7aeb87","#9df2a7","#b8f5c0","#2ec644","#4fc45a"]
+# Paleta Corporativa Secundaria Completa
+BRAND_COLORS = [
+    "#17743d", # Verde principal
+    "#1754ab", # Azul principal
+    "#cf7000", # Naranja oscuro
+    "#47b1d5", # Cyan
+    "#d88c16", # Naranja claro
+    "#005931", # Verde oscuro
+    "#e68878", # Salmón
+    "#003d6c", # Azul oscuro
+    "#d37e00", # Naranja medio
+    "#9b5b1e"  # Café
+]
 
 # ── Supabase ──────────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
@@ -89,11 +101,11 @@ def fmt_money(val):
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 def _card(content, title=None):
-    hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:.95rem;color:#333333;'
-           f'margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #196B24">{title}</div>'
+    hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.05rem;color:#003d6c;'
+           f'margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #17743d">{title}</div>'
            if title else "")
     return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;'
-            f'border-radius:10px;padding:18px 20px 14px;box-shadow:0 2px 4px rgba(0,0,0,0.02)">{hdr}{content}</div>')
+            f'border-radius:10px;padding:18px 20px 14px;box-shadow:0 4px 12px rgba(0,0,0,0.03)">{hdr}{content}</div>')
 
 def bar_chart(data, title, max_bars=20, fmt_val=None):
     data = data.dropna().sort_values(ascending=False).head(max_bars)
@@ -102,14 +114,13 @@ def bar_chart(data, title, max_bars=20, fmt_val=None):
     rows = ""
     for i,(label,val) in enumerate(data.items()):
         pct = round(val/mx*100,1)
-        alpha = max(0.4, 1-i*0.028)
-        color = f"rgba(25,107,36,{alpha:.2f})"
+        color = BRAND_COLORS[i % len(BRAND_COLORS)]
         disp = fmt_val(val) if fmt_val else (f"{int(val):,}" if float(val)==int(float(val)) else f"{val:,.1f}")
-        rows += (f'<div style="display:flex;align-items:center;margin-bottom:6px;gap:9px">'
-                 f'<div style="width:175px;font-size:.73rem;color:#2e7d32;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="{label}">{label}</div>'
-                 f'<div style="flex:1;background:#f0f0f0;border-radius:3px;height:21px;position:relative">'
-                 f'<div style="width:{pct}%;background:{color};height:100%;border-radius:3px"></div>'
-                 f'<span style="position:absolute;right:7px;top:3px;font-size:.71rem;font-weight:700;color:#333333">{disp}</span>'
+        rows += (f'<div style="display:flex;align-items:center;margin-bottom:8px;gap:9px">'
+                 f'<div style="width:175px;font-size:.73rem;color:#003d6c;font-weight:500;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="{label}">{label}</div>'
+                 f'<div style="flex:1;background:#f0f0f0;border-radius:4px;height:22px;position:relative">'
+                 f'<div style="width:{pct}%;background:{color};height:100%;border-radius:4px"></div>'
+                 f'<span style="position:absolute;right:7px;top:4px;font-size:.71rem;font-weight:700;color:#333333">{disp}</span>'
                  f'</div></div>')
     return _card(rows, title)
 
@@ -126,7 +137,7 @@ def donut_chart(data, title, top_n=8):
         x2,y2=cx+r*math.cos(a2),cy+r*math.sin(a2)
         ix1,iy1=cx+ir*math.cos(a2),cy+ir*math.sin(a2)
         ix2,iy2=cx+ir*math.cos(a1),cy+ir*math.sin(a1)
-        lg=1 if sw>180 else 0; c=GREENS[i%len(GREENS)]
+        lg=1 if sw>180 else 0; c=BRAND_COLORS[i%len(BRAND_COLORS)]
         paths+=(f'<path d="M{x1:.1f},{y1:.1f} A{r},{r} 0 {lg},1 {x2:.1f},{y2:.1f} '
                 f'L{ix1:.1f},{iy1:.1f} A{ir},{ir} 0 {lg},0 {ix2:.1f},{iy2:.1f} Z" '
                 f'fill="{c}" stroke="#ffffff" stroke-width="2"/>')
@@ -134,29 +145,30 @@ def donut_chart(data, title, top_n=8):
     legend=""
     for i,(label,val) in enumerate(top.items()):
         pct=round(val/total*100,1)
-        legend+=(f'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">'
-                 f'<div style="width:8px;height:8px;border-radius:50%;background:{GREENS[i%len(GREENS)]};flex-shrink:0"></div>'
-                 f'<div style="font-size:.7rem;color:#555555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
-                 f'<div style="font-size:.7rem;font-weight:700;color:#196B24">{pct}%</div></div>')
+        color_dot = BRAND_COLORS[i%len(BRAND_COLORS)]
+        legend+=(f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
+                 f'<div style="width:10px;height:10px;border-radius:50%;background:{color_dot};flex-shrink:0"></div>'
+                 f'<div style="font-size:.72rem;color:#444444;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
+                 f'<div style="font-size:.72rem;font-weight:700;color:#003d6c">{pct}%</div></div>')
     svg=(f'<svg width="136" height="136" viewBox="0 0 136 136">{paths}'
-         f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="15" font-family="DM Serif Display" fill="#333333" font-weight="bold">{int(total)}</text>'
-         f'<text x="{cx}" y="{cy+17}" text-anchor="middle" font-size="8" font-family="DM Sans" fill="#555555">total</text></svg>')
-    inner=(f'<div style="display:flex;gap:14px;align-items:center">'
+         f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="16" font-family="DM Serif Display" fill="#003d6c" font-weight="bold">{int(total)}</text>'
+         f'<text x="{cx}" y="{cy+17}" text-anchor="middle" font-size="8" font-family="DM Sans" fill="#666666">total</text></svg>')
+    inner=(f'<div style="display:flex;gap:16px;align-items:center">'
            f'<div style="flex-shrink:0">{svg}</div>'
            f'<div style="flex:1;overflow:hidden">{legend}</div></div>')
     return _card(inner, title)
 
 def kpi(label, value, sub=""):
-    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:4px solid #196B24;'
-            f'border-radius:8px;padding:15px 17px;margin-bottom:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02)">'
-            f'<div style="font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:#2e7d32;font-weight:600;margin-bottom:3px">{label}</div>'
-            f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;color:#333333;line-height:1">{value}</div>'
-            f'<div style="font-size:.72rem;color:#555555;margin-top:3px">{sub}</div></div>')
+    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #cf7000;' # Borde naranja vivo
+            f'border-radius:8px;padding:16px 18px;margin-bottom:6px;box-shadow:0 3px 8px rgba(0,0,0,0.03)">'
+            f'<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#1754ab;font-weight:700;margin-bottom:4px">{label}</div>'
+            f'<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;color:#003d6c;line-height:1">{value}</div>'
+            f'<div style="font-size:.75rem;color:#666666;margin-top:5px">{sub}</div></div>')
 
 def sec_title(text, sub=""):
-    s=(f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.28rem;'
-       f'color:#333333;margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid #196B24">{text}</div>')
-    if sub: s+=f'<div style="font-size:.77rem;color:#555555;margin-bottom:11px">{sub}</div>'
+    s=(f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.35rem;'
+       f'color:#003d6c;margin:28px 0 6px;padding-bottom:8px;border-bottom:2px solid #17743d">{text}</div>')
+    if sub: s+=f'<div style="font-size:.8rem;color:#555555;margin-bottom:14px">{sub}</div>'
     return s
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -300,10 +312,10 @@ def load_all():
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown(
-        '<div style="padding:12px 0 14px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.4rem;color:#196B24;line-height:1.2">SDP</div>'
-        '<div style="color:#2e7d32;font-size:.78rem;font-weight:500;margin-top:2px">Convocatorias & Proyectos</div></div>'
-        '<hr style="border-color:#a5d6a7;margin-bottom:12px">', unsafe_allow_html=True)
+        '<div style="padding:14px 0 16px">'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.6rem;color:#1754ab;line-height:1.1">SDP</div>'
+        '<div style="color:#003d6c;font-size:.8rem;font-weight:600;margin-top:4px">Convocatorias & Proyectos</div></div>'
+        '<hr style="border-color:#47b1d5;opacity:0.5;margin-bottom:14px">', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD
@@ -326,11 +338,11 @@ sectores_opts = sorted({s.strip() for row in df_conv["Sectores"] if row
 dep_opts      = sorted(df_proy["Dependencia"].dropna().unique()) if not df_proy.empty else []
 
 with st.sidebar:
-    st.markdown('<div style="font-size:.65rem;letter-spacing:.09em;text-transform:uppercase;color:#2e7d32;font-weight:600;margin-bottom:7px">Filtros</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#17743d;font-weight:700;margin-bottom:8px">Filtros</div>', unsafe_allow_html=True)
     sel_est  = st.multiselect("Estado convocatoria", estados_opts,  placeholder="Todos")
     sel_sec  = st.multiselect("Sector",              sectores_opts, placeholder="Todos")
     sel_dep  = st.multiselect("Dependencia",         dep_opts,      placeholder="Todas")
-    st.markdown('<hr style="border-color:#e0e0e0;margin:11px 0 8px">', unsafe_allow_html=True)
+    st.markdown('<hr style="border-color:#e0e0e0;margin:14px 0 10px">', unsafe_allow_html=True)
     if st.button("Refrescar", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
@@ -359,10 +371,11 @@ n_ind=len(df_i) if not df_i.empty else 0
 conv_cp=df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
 pct_cp=round(conv_cp/max(n_conv,1)*100)
 
+# Hero Banner con colores vívidos corporativos
 st.markdown(
-    '<div style="background:linear-gradient(135deg,#e8f5e9 0%,#c8e6c9 100%);border-radius:12px;padding:26px 34px 22px;margin-bottom:16px;border:1px solid #a5d6a7">'
-    '<div style="font-family:\'DM Serif Display\',serif;font-size:1.7rem;color:#196B24;margin:0 0 4px">Convocatorias & Proyectos SDP</div>'
-    '<div style="color:#2e7d32;font-size:.81rem;font-weight:500">Datos en tiempo real · Supabase · actualización cada 5 min</div></div>',
+    '<div style="background:linear-gradient(135deg,#003d6c 0%,#1754ab 100%);border-radius:12px;padding:30px 36px 26px;margin-bottom:20px;box-shadow:0 6px 15px rgba(23,84,171,0.2)">'
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;color:#ffffff;margin:0 0 6px">Convocatorias & Proyectos SDP</div>'
+    '<div style="color:#47b1d5;font-size:.85rem;font-weight:500;letter-spacing:0.02em">Datos en tiempo real · Supabase · actualización cada 5 min</div></div>',
     unsafe_allow_html=True)
 
 k1,k2,k3,k4,k5,k6 = st.columns(6)
@@ -566,7 +579,7 @@ with tab5:
     st.markdown("<br>",unsafe_allow_html=True)
     if st.button("Generar reporte",type="primary"):
         with st.spinner("Construyendo Excel…"):
-            H_FILL=PatternFill("solid",fgColor="196B24")
+            H_FILL=PatternFill("solid",fgColor="1754ab") # Azul corporativo para los headers de Excel
             H_FONT=Font(bold=True,color="FFFFFF",name="Arial",size=10)
             C_FONT=Font(name="Arial",size=9)
             WHITE=PatternFill("solid",fgColor="FFFFFF")
