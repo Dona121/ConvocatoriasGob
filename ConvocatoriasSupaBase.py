@@ -21,8 +21,8 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 /* 🎨 Diseño del panel lateral izquierdo (Oscuro Corporativo) */
 section[data-testid="stSidebar"]>div:first-child{
     background: #003d6c !important; /* Azul oscuro corporativo */
-    border-right: 1px solid #1754ab;
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+    border-right: 3px solid #47b1d5 !important; /* Barra separadora cyan */
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.08); /* Sombra para profundidad */
 }
 section[data-testid="stSidebar"] label {
     color: #ffffff !important; /* Etiquetas de filtros en blanco */
@@ -41,9 +41,9 @@ section[data-testid="stSidebar"] .stButton>button:hover {
 }
 
 /* Pestañas */
-.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #1754ab;gap:4px}
+.stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #47b1d5;gap:4px} /* Base cyan */
 .stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#003d6c}
-.stTabs [aria-selected="true"]{background:#1754ab!important;color:#fff!important} /* Azul corporativo */
+.stTabs [aria-selected="true"]{background:#47b1d5!important;color:#fff!important} /* Tab activo cyan */
 
 /* Botones con micro-interacciones (hover) - Principal */
 .stDownloadButton>button,.stButton>button[kind="primary"]{
@@ -174,7 +174,7 @@ def donut_chart(data, title, top_n=8):
     return _card(inner, title)
 
 def kpi(label, value, sub=""):
-    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #cf7000;'
+    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #47b1d5;'
             f'border-radius:8px;padding:16px 18px;margin-bottom:6px;box-shadow:0 3px 8px rgba(0,0,0,0.03)">'
             f'<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#1754ab;font-weight:700;margin-bottom:4px">{label}</div>'
             f'<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;color:#003d6c;line-height:1">{value}</div>'
