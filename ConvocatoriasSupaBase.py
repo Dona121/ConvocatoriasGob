@@ -11,15 +11,15 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 st.set_page_config(page_title="Convocatorias & Proyectos SDP",
-                   page_icon="📁", layout="wide", initial_sidebar_state="expanded")
+                   layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
-section[data-testid="stSidebar"]>div:first-child{background:#111!important;border-right:1px solid #196B24}
+section[data-testid="stSidebar"]>div:first-child{background:#f8f9fa!important;border-right:1px solid #196B24}
 .stTabs [data-baseweb="tab-list"]{border-bottom:2px solid #196B24;gap:4px}
-.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent}
+.stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#333}
 .stTabs [aria-selected="true"]{background:#196B24!important;color:#fff!important}
 .stDownloadButton>button,.stButton>button[kind="primary"]{background:#196B24!important;color:white!important;border:none!important;border-radius:8px!important;font-weight:600!important;padding:10px 24px!important}
 </style>""", unsafe_allow_html=True)
@@ -70,11 +70,11 @@ def fmt_money(val):
 
 # ── Charts ────────────────────────────────────────────────────────────────────
 def _card(content, title=None):
-    hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:.95rem;color:#e8e8e8;'
+    hdr = (f'<div style="font-family:\'DM Serif Display\',serif;font-size:.95rem;color:#333333;'
            f'margin-bottom:12px;padding-bottom:7px;border-bottom:2px solid #196B24">{title}</div>'
            if title else "")
-    return (f'<div style="background:#1a1a1a;border:1px solid #2a2a2a;'
-            f'border-radius:10px;padding:18px 20px 14px">{hdr}{content}</div>')
+    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;'
+            f'border-radius:10px;padding:18px 20px 14px;box-shadow:0 2px 4px rgba(0,0,0,0.02)">{hdr}{content}</div>')
 
 def bar_chart(data, title, max_bars=20, fmt_val=None):
     data = data.dropna().sort_values(ascending=False).head(max_bars)
@@ -87,10 +87,10 @@ def bar_chart(data, title, max_bars=20, fmt_val=None):
         color = f"rgba(25,107,36,{alpha:.2f})"
         disp = fmt_val(val) if fmt_val else (f"{int(val):,}" if float(val)==int(float(val)) else f"{val:,.1f}")
         rows += (f'<div style="display:flex;align-items:center;margin-bottom:6px;gap:9px">'
-                 f'<div style="width:175px;font-size:.73rem;color:#a5d6a7;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="{label}">{label}</div>'
-                 f'<div style="flex:1;background:#252525;border-radius:3px;height:21px;position:relative">'
+                 f'<div style="width:175px;font-size:.73rem;color:#2e7d32;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0" title="{label}">{label}</div>'
+                 f'<div style="flex:1;background:#f0f0f0;border-radius:3px;height:21px;position:relative">'
                  f'<div style="width:{pct}%;background:{color};height:100%;border-radius:3px"></div>'
-                 f'<span style="position:absolute;right:7px;top:3px;font-size:.71rem;font-weight:700;color:#e8e8e8">{disp}</span>'
+                 f'<span style="position:absolute;right:7px;top:3px;font-size:.71rem;font-weight:700;color:#333333">{disp}</span>'
                  f'</div></div>')
     return _card(rows, title)
 
@@ -110,34 +110,34 @@ def donut_chart(data, title, top_n=8):
         lg=1 if sw>180 else 0; c=GREENS[i%len(GREENS)]
         paths+=(f'<path d="M{x1:.1f},{y1:.1f} A{r},{r} 0 {lg},1 {x2:.1f},{y2:.1f} '
                 f'L{ix1:.1f},{iy1:.1f} A{ir},{ir} 0 {lg},0 {ix2:.1f},{iy2:.1f} Z" '
-                f'fill="{c}" stroke="#111" stroke-width="2"/>')
+                f'fill="{c}" stroke="#ffffff" stroke-width="2"/>')
         angle=end
     legend=""
     for i,(label,val) in enumerate(top.items()):
         pct=round(val/total*100,1)
         legend+=(f'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">'
                  f'<div style="width:8px;height:8px;border-radius:50%;background:{GREENS[i%len(GREENS)]};flex-shrink:0"></div>'
-                 f'<div style="font-size:.7rem;color:#c8e6c9;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
-                 f'<div style="font-size:.7rem;font-weight:700;color:#7aeb87">{pct}%</div></div>')
+                 f'<div style="font-size:.7rem;color:#555555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{label}">{label}</div>'
+                 f'<div style="font-size:.7rem;font-weight:700;color:#196B24">{pct}%</div></div>')
     svg=(f'<svg width="136" height="136" viewBox="0 0 136 136">{paths}'
-         f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="15" font-family="DM Serif Display" fill="#e8e8e8" font-weight="bold">{int(total)}</text>'
-         f'<text x="{cx}" y="{cy+17}" text-anchor="middle" font-size="8" font-family="DM Sans" fill="#7db87d">total</text></svg>')
+         f'<text x="{cx}" y="{cy+5}" text-anchor="middle" font-size="15" font-family="DM Serif Display" fill="#333333" font-weight="bold">{int(total)}</text>'
+         f'<text x="{cx}" y="{cy+17}" text-anchor="middle" font-size="8" font-family="DM Sans" fill="#555555">total</text></svg>')
     inner=(f'<div style="display:flex;gap:14px;align-items:center">'
            f'<div style="flex-shrink:0">{svg}</div>'
            f'<div style="flex:1;overflow:hidden">{legend}</div></div>')
     return _card(inner, title)
 
 def kpi(label, value, sub=""):
-    return (f'<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-left:4px solid #196B24;'
-            f'border-radius:8px;padding:15px 17px;margin-bottom:6px">'
-            f'<div style="font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:#7db87d;font-weight:600;margin-bottom:3px">{label}</div>'
-            f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;color:#e8e8e8;line-height:1">{value}</div>'
-            f'<div style="font-size:.72rem;color:#7db87d;margin-top:3px">{sub}</div></div>')
+    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:4px solid #196B24;'
+            f'border-radius:8px;padding:15px 17px;margin-bottom:6px;box-shadow:0 2px 4px rgba(0,0,0,0.02)">'
+            f'<div style="font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:#2e7d32;font-weight:600;margin-bottom:3px">{label}</div>'
+            f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.9rem;color:#333333;line-height:1">{value}</div>'
+            f'<div style="font-size:.72rem;color:#555555;margin-top:3px">{sub}</div></div>')
 
 def sec_title(text, sub=""):
     s=(f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.28rem;'
-       f'color:#e8e8e8;margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid #196B24">{text}</div>')
-    if sub: s+=f'<div style="font-size:.77rem;color:#7db87d;margin-bottom:11px">{sub}</div>'
+       f'color:#333333;margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid #196B24">{text}</div>')
+    if sub: s+=f'<div style="font-size:.77rem;color:#555555;margin-bottom:11px">{sub}</div>'
     return s
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -282,8 +282,8 @@ def load_all():
 with st.sidebar:
     st.markdown(
         '<div style="padding:12px 0 14px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.28rem;color:#e8e8e8">📁 SDP</div>'
-        '<div style="color:#7db87d;font-size:.77rem;margin-top:2px">Convocatorias & Proyectos</div></div>'
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.28rem;color:#333333">SDP</div>'
+        '<div style="color:#555555;font-size:.77rem;margin-top:2px">Convocatorias & Proyectos</div></div>'
         '<hr style="border-color:#196B24;margin-bottom:12px">', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -307,12 +307,12 @@ sectores_opts = sorted({s.strip() for row in df_conv["Sectores"] if row
 dep_opts      = sorted(df_proy["Dependencia"].dropna().unique()) if not df_proy.empty else []
 
 with st.sidebar:
-    st.markdown('<div style="font-size:.65rem;letter-spacing:.09em;text-transform:uppercase;color:#7db87d;font-weight:600;margin-bottom:7px">Filtros</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.65rem;letter-spacing:.09em;text-transform:uppercase;color:#2e7d32;font-weight:600;margin-bottom:7px">Filtros</div>', unsafe_allow_html=True)
     sel_est  = st.multiselect("Estado convocatoria", estados_opts,  placeholder="Todos")
     sel_sec  = st.multiselect("Sector",              sectores_opts, placeholder="Todos")
     sel_dep  = st.multiselect("Dependencia",         dep_opts,      placeholder="Todas")
-    st.markdown('<hr style="border-color:#2a2a2a;margin:11px 0 8px">', unsafe_allow_html=True)
-    if st.button("🔄 Refrescar", use_container_width=True):
+    st.markdown('<hr style="border-color:#e0e0e0;margin:11px 0 8px">', unsafe_allow_html=True)
+    if st.button("Refrescar", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
 df_c = df_conv.copy(); df_p = df_proy.copy()
@@ -341,9 +341,9 @@ conv_cp=df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
 pct_cp=round(conv_cp/max(n_conv,1)*100)
 
 st.markdown(
-    '<div style="background:linear-gradient(135deg,#111 0%,#154d1c 100%);border-radius:12px;padding:26px 34px 22px;margin-bottom:16px">'
-    '<div style="font-family:\'DM Serif Display\',serif;font-size:1.7rem;color:white;margin:0 0 4px">Convocatorias & Proyectos SDP</div>'
-    '<div style="color:#a5d6a7;font-size:.81rem;font-weight:300">Datos en tiempo real · Supabase · actualización cada 5 min</div></div>',
+    '<div style="background:linear-gradient(135deg,#e8f5e9 0%,#c8e6c9 100%);border-radius:12px;padding:26px 34px 22px;margin-bottom:16px;border:1px solid #a5d6a7">'
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:1.7rem;color:#196B24;margin:0 0 4px">Convocatorias & Proyectos SDP</div>'
+    '<div style="color:#2e7d32;font-size:.81rem;font-weight:500">Datos en tiempo real · Supabase · actualización cada 5 min</div></div>',
     unsafe_allow_html=True)
 
 k1,k2,k3,k4,k5,k6 = st.columns(6)
@@ -358,7 +358,7 @@ k6.markdown(kpi("Indicadores MGA", n_ind,            "registros"),            un
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
 tab1,tab2,tab3,tab4,tab5 = st.tabs([
-    "📋 Convocatorias","🗂 Proyectos","🔗 Relaciones","📊 Indicadores MGA","📥 Reporte Excel"])
+    "Convocatorias","Proyectos","Relaciones","Indicadores MGA","Reporte Excel"])
 
 # ─── TAB 1 CONVOCATORIAS ──────────────────────────────────────────────────────
 with tab1:
@@ -494,7 +494,7 @@ with tab3:
 
         sin=df_c[df_c["N° proyectos"]==0] if not df_c.empty else pd.DataFrame()
         if not sin.empty:
-            with st.expander(f"⚠️ {len(sin)} convocatoria(s) sin proyectos"):
+            with st.expander(f"{len(sin)} convocatoria(s) sin proyectos"):
                 sc=["Convocatoria","Estado","Monto","Sectores"]
                 sc=[c for c in sc if c in sin.columns]
                 st.dataframe(sin[sc].reset_index(drop=True), use_container_width=True, hide_index=True)
@@ -587,6 +587,6 @@ with tab5:
                 ws.add_table(tbl)
             buf=io.BytesIO(); wb.save(buf)
         st.success("Listo.")
-        st.download_button("⬇ Descargar Reporte_SDP.xlsx",data=buf.getvalue(),
+        st.download_button("Descargar Reporte_SDP.xlsx",data=buf.getvalue(),
             file_name="Reporte_SDP.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
