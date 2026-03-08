@@ -18,15 +18,24 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 
+/* 🎨 Reducir el espacio en blanco masivo de Streamlit (Separación Sidebar-Contenido) */
+.block-container {
+    padding-top: 2rem !important;
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 100% !important;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #47b1d5; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #1754ab; }
 
-/* 🎨 Diseño del panel lateral izquierdo (Ultra Oscuro como en la referencia) */
+/* Diseño del panel lateral izquierdo (Ultra Oscuro como en la referencia) */
 section[data-testid="stSidebar"]>div:first-child{
-    background: #041e35 !important; /* Azul muy oscuro */
+    background: #041e35 !important;
     border-right: none !important;
     box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
 }
@@ -49,7 +58,7 @@ section[data-testid="stSidebar"] .stButton>button:hover {
     color: #041e35 !important;
 }
 
-/* 🎨 Pestañas Minimalistas (Estilo referencia) */
+/* Pestañas Minimalistas (Estilo referencia) */
 .stTabs [data-baseweb="tab-list"]{
     border-bottom: 1px solid #e0e0e0;
     gap: 24px;
@@ -66,7 +75,7 @@ section[data-testid="stSidebar"] .stButton>button:hover {
 .stTabs [aria-selected="true"]{
     background: transparent !important; 
     color: #003d6c !important;
-    border-bottom: 3px solid #e68878 !important; /* Acento salmón corporativo */
+    border-bottom: 3px solid #e68878 !important;
 }
 
 /* Botones Principales */
@@ -219,7 +228,6 @@ def kpi(label, value, sub="", tooltip="", style="white", border_color="#47b1d5",
         text_c = "#003d6c"
         label_c = "#1754ab"
         sub_c = "#777777"
-        # CORRECCIÓN DE LA SINTAXIS CSS PARA DEVOLVER EL BORDE
         border_style = f"border: 1px solid #e0e0e0; border-left: 5px solid {border_color};"
 
     return (f'<div title="{tt}" style="flex:{flex}; min-width:130px; background:{bg}; {border_style} '
