@@ -29,7 +29,7 @@ try:
     _URL = st.secrets["supabase"]["url"]
     _KEY = st.secrets["supabase"]["key"]
 except Exception:
-    _URL = "https://keordvjrhcgvnrrvnfa.supabase.co"
+    _URL = "https://keoredvjrhcgvnrrvnfa.supabase.co"
     _KEY = ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlb3JlZHZqcmhjZ3ZucnJ2bmZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzA0MDYsImV4cCI6MjA4ODE0NjQwNn0."
             "h9QNpcbiMXZfeheOAVHtYnC4-n8luCg92s-Xd_BFrZA")
