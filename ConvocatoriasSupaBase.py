@@ -199,34 +199,34 @@ def donut_chart(data, title, top_n=8):
            f'<div style="flex:1;overflow:hidden">{legend}</div></div>')
     return _card(inner, title)
 
-def kpi(label, value, sub="", tooltip="", style="white", border_color="#47b1d5"):
+def kpi(label, value, sub="", tooltip="", style="white", border_color="#47b1d5", flex="1"):
     tt = tooltip if tooltip else f"{label}: {sub}"
     
-    # Lógica de estilos basados en la imagen de referencia
     if style == "dark-blue":
         bg = "#003d6c"
         text_c = "#ffffff"
         label_c = "#47b1d5"
         sub_c = "#a5d6a7"
-        border = "none"
+        border_style = "border: none;"
     elif style == "dark-green":
         bg = "#005931"
         text_c = "#ffffff"
         label_c = "#7aeb87"
         sub_c = "#a5d6a7"
-        border = "none"
-    else: # Estilo blanco por defecto
+        border_style = "border: none;"
+    else: 
         bg = "#ffffff"
         text_c = "#003d6c"
         label_c = "#1754ab"
-        sub_c = "#666666"
-        border = f"1px solid #e0e0e0; border-left: 5px solid {border_color};"
+        sub_c = "#777777"
+        # CORRECCIÓN DE LA SINTAXIS CSS PARA DEVOLVER EL BORDE
+        border_style = f"border: 1px solid #e0e0e0; border-left: 5px solid {border_color};"
 
-    return (f'<div title="{tt}" style="background:{bg}; {border if border != "none" else ""}'
-            f'border-radius:10px;padding:20px 22px;margin-bottom:8px;box-shadow:0 4px 10px rgba(0,0,0,0.05); height: 95%;">'
-            f'<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:{label_c};font-weight:700;margin-bottom:6px">{label}</div>'
-            f'<div style="font-family:\'DM Serif Display\',serif;font-size:2.4rem;color:{text_c};line-height:1">{value}</div>'
-            f'<div style="font-size:.78rem;color:{sub_c};margin-top:8px">{sub}</div></div>')
+    return (f'<div title="{tt}" style="flex:{flex}; min-width:130px; background:{bg}; {border_style} '
+            f'border-radius:10px; padding:18px 16px; box-shadow:0 3px 8px rgba(0,0,0,0.04); display:flex; flex-direction:column; justify-content:center;">'
+            f'<div style="font-size:.65rem; letter-spacing:.08em; text-transform:uppercase; color:{label_c}; font-weight:700; margin-bottom:4px">{label}</div>'
+            f'<div style="font-family:\'DM Serif Display\',serif; font-size:2.1rem; color:{text_c}; line-height:1.1">{value}</div>'
+            f'<div style="font-size:.7rem; color:{sub_c}; margin-top:6px">{sub}</div></div>')
 
 def sec_title(text, sub=""):
     s=(f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.45rem;'
@@ -415,7 +415,7 @@ df_i = df_ind.copy()
 if not df_i.empty and sel_dep: df_i = df_i[df_i["proyecto_id"].isin(df_p["id"])]
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HERO + KPIs
+# HERO + KPIs (Contenedor HTML Flexbox unificado)
 # ══════════════════════════════════════════════════════════════════════════════
 n_conv=df_c["id"].nunique() if not df_c.empty else 0
 n_proy=df_p["id"].nunique() if not df_p.empty else 0
@@ -432,20 +432,22 @@ st.markdown(
     '<div style="color:#a5d6a7;font-size:.9rem;font-weight:400;letter-spacing:0.02em">Matriz de seguimiento de proyectos por dependencia · Actualización en tiempo real</div></div>',
     unsafe_allow_html=True)
 
-# Layout asimétrico: Las tarjetas de fondo sólido son un poco más anchas
-k1, k2, k3, k4, k5, k6 = st.columns([1.5, 1.5, 1, 1, 1, 1])
-
-k1.markdown(kpi("Total Convocatorias", n_conv, "en los filtros activos", "Total de convocatorias encontradas", style="dark-blue"), unsafe_allow_html=True)
-k2.markdown(kpi("Proyectos", n_proy, "formulados / dependencias", "Total de proyectos formulados", style="dark-green"), unsafe_allow_html=True)
-k3.markdown(kpi("Con proyectos", f"{conv_cp}", f"{pct_cp}% de conv.", border_color="#d88c16"), unsafe_allow_html=True)
-k4.markdown(kpi("Monto convoc.", fmt_money(m_conv), "suma total", border_color="#cf7000"), unsafe_allow_html=True)
-k5.markdown(kpi("Valor proy.", fmt_money(v_proy), "suma total", border_color="#47b1d5"), unsafe_allow_html=True)
-k6.markdown(kpi("Indicadores", n_ind, "MGA asociados", border_color="#1754ab"), unsafe_allow_html=True)
+# Generación del bloque maestro de tarjetas (KPIs) con HTML Flexbox
+kpis_html = f"""
+<div style="display: flex; gap: 14px; margin-bottom: 24px; align-items: stretch; flex-wrap: wrap;">
+    {kpi("Total Convocatorias", n_conv, "en filtros activos", style="dark-blue", flex="1.5")}
+    {kpi("Proyectos", n_proy, "formulados", style="dark-green", flex="1.5")}
+    {kpi("Con proyectos", f"{conv_cp}", f"{pct_cp}% de conv.", border_color="#d88c16", flex="1")}
+    {kpi("Monto convoc.", fmt_money(m_conv), "suma total", border_color="#cf7000", flex="1")}
+    {kpi("Valor proy.", fmt_money(v_proy), "suma total", border_color="#47b1d5", flex="1")}
+    {kpi("Indicadores", n_ind, "MGA asociados", border_color="#1754ab", flex="1")}
+</div>
+"""
+st.markdown(kpis_html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("<br>", unsafe_allow_html=True) # Pequeño respiro antes de los tabs
 tab1,tab2,tab3,tab4,tab5 = st.tabs([
     "Resumen general", "Proyectos formulados", "Relaciones matriciales", "Detalle Indicadores MGA", "Exportar"])
 
@@ -631,13 +633,17 @@ with tab5:
     
     st.markdown("<br>",unsafe_allow_html=True)
     
-    x1,x2,x3,x4=st.columns(4)
-    x1.markdown(kpi("Convocatorias", ec["id"].nunique() if not ec.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
-    x2.markdown(kpi("Proyectos", ep["id"].nunique() if not ep.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
-    x3.markdown(kpi("Relaciones", len(er) if not er.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
-    x4.markdown(kpi("Indicadores", len(ei) if not ei.empty else 0, "registros a exportar", style="white", border_color="#1754ab"), unsafe_allow_html=True)
+    # KPIs de exportación usando flexbox nativo de HTML para evitar el uso de st.columns
+    kpis_export_html = f"""
+    <div style="display: flex; gap: 14px; margin-bottom: 24px; align-items: stretch; flex-wrap: wrap;">
+        {kpi("Convocatorias", ec["id"].nunique() if not ec.empty else 0, "registros a exportar", style="white", border_color="#1754ab", flex="1")}
+        {kpi("Proyectos", ep["id"].nunique() if not ep.empty else 0, "registros a exportar", style="white", border_color="#1754ab", flex="1")}
+        {kpi("Relaciones", len(er) if not er.empty else 0, "registros a exportar", style="white", border_color="#1754ab", flex="1")}
+        {kpi("Indicadores", len(ei) if not ei.empty else 0, "registros a exportar", style="white", border_color="#1754ab", flex="1")}
+    </div>
+    """
+    st.markdown(kpis_export_html, unsafe_allow_html=True)
     
-    st.markdown("<br>",unsafe_allow_html=True)
     if st.button("Generar reporte de Excel",type="primary"):
         with st.spinner("Construyendo matriz Excel..."):
             H_FILL=PatternFill("solid",fgColor="003d6c")
