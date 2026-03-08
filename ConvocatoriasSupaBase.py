@@ -18,11 +18,26 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 
-/* 🎨 Diseño del panel lateral izquierdo */
+/* 🎨 Diseño del panel lateral izquierdo (Oscuro Corporativo) */
 section[data-testid="stSidebar"]>div:first-child{
-    background: linear-gradient(180deg, #f0f8fb 0%, #ffffff 100%) !important; /* Tint cyan muy suave */
-    border-right: 1px solid #47b1d5; /* Acento cyan corporativo */
-    box-shadow: inset -3px 0 10px rgba(71, 177, 213, 0.05);
+    background: #003d6c !important; /* Azul oscuro corporativo */
+    border-right: 1px solid #1754ab;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+}
+section[data-testid="stSidebar"] label {
+    color: #ffffff !important; /* Etiquetas de filtros en blanco */
+}
+/* Botón secundario en el sidebar (Refrescar) */
+section[data-testid="stSidebar"] .stButton>button {
+    background: #1754ab !important;
+    color: #ffffff !important;
+    border: 1px solid #47b1d5 !important;
+    transition: all 0.3s ease;
+}
+section[data-testid="stSidebar"] .stButton>button:hover {
+    background: #47b1d5 !important;
+    color: #003d6c !important;
+    border-color: #47b1d5 !important;
 }
 
 /* Pestañas */
@@ -30,7 +45,7 @@ section[data-testid="stSidebar"]>div:first-child{
 .stTabs [data-baseweb="tab"]{font-weight:600;font-size:.84rem;border-radius:6px 6px 0 0;padding:8px 18px;background:transparent;color:#003d6c}
 .stTabs [aria-selected="true"]{background:#1754ab!important;color:#fff!important} /* Azul corporativo */
 
-/* Botones con micro-interacciones (hover) */
+/* Botones con micro-interacciones (hover) - Principal */
 .stDownloadButton>button,.stButton>button[kind="primary"]{
     background:#17743d!important; /* Verde corporativo */
     color:white!important;border:none!important;
@@ -159,7 +174,7 @@ def donut_chart(data, title, top_n=8):
     return _card(inner, title)
 
 def kpi(label, value, sub=""):
-    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #cf7000;' # Borde naranja vivo
+    return (f'<div style="background:#ffffff;border:1px solid #e0e0e0;border-left:5px solid #cf7000;'
             f'border-radius:8px;padding:16px 18px;margin-bottom:6px;box-shadow:0 3px 8px rgba(0,0,0,0.03)">'
             f'<div style="font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:#1754ab;font-weight:700;margin-bottom:4px">{label}</div>'
             f'<div style="font-family:\'DM Serif Display\',serif;font-size:2rem;color:#003d6c;line-height:1">{value}</div>'
@@ -313,9 +328,9 @@ def load_all():
 with st.sidebar:
     st.markdown(
         '<div style="padding:14px 0 16px">'
-        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.6rem;color:#1754ab;line-height:1.1">SDP</div>'
-        '<div style="color:#003d6c;font-size:.8rem;font-weight:600;margin-top:4px">Convocatorias & Proyectos</div></div>'
-        '<hr style="border-color:#47b1d5;opacity:0.5;margin-bottom:14px">', unsafe_allow_html=True)
+        '<div style="font-family:\'DM Serif Display\',serif;font-size:1.6rem;color:#ffffff;line-height:1.1">SDP</div>'
+        '<div style="color:#47b1d5;font-size:.8rem;font-weight:600;margin-top:4px">Convocatorias & Proyectos</div></div>'
+        '<hr style="border-color:#1754ab;margin-bottom:14px">', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD
@@ -338,11 +353,11 @@ sectores_opts = sorted({s.strip() for row in df_conv["Sectores"] if row
 dep_opts      = sorted(df_proy["Dependencia"].dropna().unique()) if not df_proy.empty else []
 
 with st.sidebar:
-    st.markdown('<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#17743d;font-weight:700;margin-bottom:8px">Filtros</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#47b1d5;font-weight:700;margin-bottom:8px">Filtros</div>', unsafe_allow_html=True)
     sel_est  = st.multiselect("Estado convocatoria", estados_opts,  placeholder="Todos")
     sel_sec  = st.multiselect("Sector",              sectores_opts, placeholder="Todos")
     sel_dep  = st.multiselect("Dependencia",         dep_opts,      placeholder="Todas")
-    st.markdown('<hr style="border-color:#e0e0e0;margin:14px 0 10px">', unsafe_allow_html=True)
+    st.markdown('<hr style="border-color:#1754ab;margin:14px 0 10px">', unsafe_allow_html=True)
     if st.button("Refrescar", use_container_width=True):
         st.cache_data.clear(); st.rerun()
 
