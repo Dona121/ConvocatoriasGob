@@ -1096,5 +1096,5 @@ with tab5:
 st.markdown('<hr style="border-color:#e0e0e0;margin-top:40px;margin-bottom:10px">',
             unsafe_allow_html=True)
 st.markdown('<div style="text-align:center;padding:10px;font-size:.85rem;color:#888">'
-            'Secretaría Distrital de Planeación · Seguimiento de Convocatorias y Proyectos'
+            'Secretaría de Planeación · Seguimiento de Convocatorias y Proyectos'
             '</div>', unsafe_allow_html=True)
