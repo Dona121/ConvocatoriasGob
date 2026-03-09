@@ -472,139 +472,291 @@ GEMINI_API_KEY = "AIzaSyDqHYMD79btZiRlXFHYXWU0SDaiNtIwGgA"
 GEMINI_MODEL   = "gemini-3-flash-preview"
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Resumen general", "Proyectos formulados",
-    "Relaciones matriciales", "✨ Asistente IA", "Exportar",
+    "Convocatorias", "Proyectos",
+    "Trazabilidad", "✨ Asistente IA", "Exportar",
 ])
 
-# ─── TAB 1: RESUMEN GENERAL ───────────────────────────────────────────────────
+# ─── TAB 1: CONVOCATORIAS ─────────────────────────────────────────────────────
 with tab1:
-    st.markdown(sec_title("Convocatorias", f"{n_conv} registros activos en el tablero"),
-                unsafe_allow_html=True)
-    if not df_c.empty:
-        ca, cb = st.columns([3, 2])
-        with ca:
-            st.markdown(bar_chart(df_c["Estado"].value_counts(), "Por estado"), unsafe_allow_html=True)
-            sec_exp = df_c["Sectores"].str.split(" · ").explode().str.strip().value_counts()
-            sec_exp = sec_exp[sec_exp.index.str.len() > 0]
-            if not sec_exp.empty:
-                st.markdown(bar_chart(sec_exp, "Por sector", max_bars=15), unsafe_allow_html=True)
-            # WARN #3 fix: graficar dependencias de convocatorias
-            dep_exp = df_c["Dependencias"].str.split(" · ").explode().str.strip().value_counts()
-            dep_exp = dep_exp[dep_exp.index.str.len() > 0]
-            if not dep_exp.empty:
-                st.markdown(bar_chart(dep_exp, "Por dependencia responsable", max_bars=12),
+    st.markdown(sec_title("Convocatorias",
+        "Selecciona una convocatoria para ver su ficha completa, o explora el resumen general"),
+        unsafe_allow_html=True)
+
+    opciones_c1 = ["— Ver resumen general —"] + sorted(df_c["Convocatoria"].tolist())
+    sel_c1 = st.selectbox("Convocatoria", opciones_c1, key="sel_c1",
+                           label_visibility="collapsed")
+
+    # ── MODO A: resumen general ───────────────────────────────────────────────
+    if sel_c1 == "— Ver resumen general —":
+        if not df_c.empty:
+            ca, cb = st.columns([3, 2])
+            with ca:
+                st.markdown(bar_chart(df_c["Estado"].value_counts(), "Por estado"),
                             unsafe_allow_html=True)
-        with cb:
-            seg_exp = df_c["Segmentos"].str.split(" · ").explode().str.strip().value_counts()
-            seg_exp = seg_exp[seg_exp.index.str.len() > 0]
-            if not seg_exp.empty:
-                st.markdown(donut_chart(seg_exp, "Por segmento"), unsafe_allow_html=True)
-            ubi_exp = df_c["Ubicación"].str.split(" · ").explode().str.strip().value_counts()
-            ubi_exp = ubi_exp[ubi_exp.index.str.len() > 0]
-            if not ubi_exp.empty:
-                st.markdown(donut_chart(ubi_exp, "Por ubicación"), unsafe_allow_html=True)
-            st.markdown(
-                bar_chart(df_c.groupby("Estado")["Monto"].sum().sort_values(ascending=False),
-                          "Monto por estado", fmt_val=fmt_money),
-                unsafe_allow_html=True)
+                sec_exp = df_c["Sectores"].str.split(" · ").explode().str.strip().value_counts()
+                sec_exp = sec_exp[sec_exp.index.str.len() > 0]
+                if not sec_exp.empty:
+                    st.markdown(bar_chart(sec_exp, "Por sector", max_bars=15),
+                                unsafe_allow_html=True)
+                dep_exp = df_c["Dependencias"].str.split(" · ").explode().str.strip().value_counts()
+                dep_exp = dep_exp[dep_exp.index.str.len() > 0]
+                if not dep_exp.empty:
+                    st.markdown(bar_chart(dep_exp, "Por dependencia responsable", max_bars=12),
+                                unsafe_allow_html=True)
+            with cb:
+                seg_exp = df_c["Segmentos"].str.split(" · ").explode().str.strip().value_counts()
+                seg_exp = seg_exp[seg_exp.index.str.len() > 0]
+                if not seg_exp.empty:
+                    st.markdown(donut_chart(seg_exp, "Por segmento"), unsafe_allow_html=True)
+                ubi_exp = df_c["Ubicación"].str.split(" · ").explode().str.strip().value_counts()
+                ubi_exp = ubi_exp[ubi_exp.index.str.len() > 0]
+                if not ubi_exp.empty:
+                    st.markdown(donut_chart(ubi_exp, "Por ubicación"), unsafe_allow_html=True)
+                st.markdown(
+                    bar_chart(df_c.groupby("Estado")["Monto"].sum().sort_values(ascending=False),
+                              "Monto por estado", fmt_val=fmt_money),
+                    unsafe_allow_html=True)
 
-    st.markdown(sec_title("Matriz de convocatorias"), unsafe_allow_html=True)
-    lc = ["Convocatoria","Estado","Fecha apertura","Fecha cierre","Monto",
-          "Sectores","Segmentos","Ubicación","N° proyectos","Contacto"]
-    lc = [c for c in lc if c in df_c.columns]
-    st.dataframe(df_c[lc].reset_index(drop=True), use_container_width=True, height=400,
-        hide_index=True,
-        column_config={
-            "Convocatoria": st.column_config.TextColumn(width=280),
-            "Monto":        st.column_config.NumberColumn("Monto $", format="$%,.0f"),
-            "N° proyectos": st.column_config.NumberColumn("Proyectos", width=90),
-        })
+        st.markdown(sec_title("Matriz de convocatorias"), unsafe_allow_html=True)
+        lc = ["Convocatoria","Estado","Fecha apertura","Fecha cierre","Monto",
+              "Sectores","Segmentos","Ubicación","N° proyectos","Contacto"]
+        lc = [c for c in lc if c in df_c.columns]
+        st.dataframe(df_c[lc].reset_index(drop=True), use_container_width=True, height=420,
+            hide_index=True,
+            column_config={
+                "Convocatoria": st.column_config.TextColumn(width=280),
+                "Monto":        st.column_config.NumberColumn("Monto $", format="$%,.0f"),
+                "N° proyectos": st.column_config.NumberColumn("Proyectos", width=90),
+            })
 
-    st.markdown(sec_title("Ficha de la convocatoria"), unsafe_allow_html=True)
-    if not df_c.empty:
-        sel = st.selectbox("Selecciona para expandir", df_c["Convocatoria"].tolist(), key="dc")
-        if sel:
-            row = df_c[df_c["Convocatoria"] == sel].iloc[0]
-            d1,d2,d3,d4 = st.columns(4)
-            d1.metric("Estado",    row["Estado"])
-            d2.metric("Monto",     fmt_money(row["Monto"]))
-            d3.metric("Proyectos", int(row["N° proyectos"]))
-            d4.metric("Apertura",  row["Fecha apertura"])
-            with st.expander("Ver descripción y requisitos completos"):
-                for f in ["Qué ofrece","Quiénes participan","Público priorizado",
-                           "Sectores","Segmentos","Ubicación","Dependencias","Aliados","Contacto"]:
-                    if f in row and str(row[f]).strip() and str(row[f]) not in ("—",""):
-                        st.markdown(f"**{f}:** {row[f]}")
-            proy_sub = df_p[df_p["convocatoria_id"] == int(row["id"])]
+    # ── MODO B: ficha de una convocatoria ────────────────────────────────────
+    else:
+        row = df_c[df_c["Convocatoria"] == sel_c1]
+        if not row.empty:
+            cr = row.iloc[0]
+            estado_color = "#17743d" if "vigente" in str(cr["Estado"]).lower() else "#cf7000"
+            badges_html  = badge(cr["Estado"], estado_color)
+            for s in str(cr.get("Sectores","")).split(" · "):
+                if s.strip(): badges_html += badge(s.strip(), "#1754ab")
+            for s in str(cr.get("Segmentos","")).split(" · "):
+                if s.strip(): badges_html += badge(s.strip(), "#47b1d5")
+
+            st.markdown(f"""
+<div style="background:#f8fbff;border:1px solid #cce0f5;border-left:5px solid #1754ab;
+border-radius:10px;padding:26px 30px;margin:16px 0 20px">
+  <div style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:#003d6c;margin-bottom:10px">
+    {cr['Convocatoria']}
+  </div>
+  <div style="margin-bottom:16px">{badges_html}</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;margin-bottom:18px">
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Monto disponible</div>
+      <div style="font-size:1.5rem;font-family:'DM Serif Display',serif;color:#005931">{fmt_money(cr['Monto'])}</div>
+    </div>
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Fecha apertura</div>
+      <div style="font-size:1rem;color:#222;margin-top:4px">{cr['Fecha apertura']}</div>
+    </div>
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Fecha cierre</div>
+      <div style="font-size:1rem;color:#222;margin-top:4px">{cr['Fecha cierre']}</div>
+    </div>
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Proyectos formulados</div>
+      <div style="font-size:1.5rem;font-family:'DM Serif Display',serif;color:#1754ab">{int(cr['N° proyectos'])}</div>
+    </div>
+  </div>
+  {field_row("Qué ofrece",         cr.get("Qué ofrece",""))}
+  {field_row("Quiénes participan", cr.get("Quiénes participan",""))}
+  {field_row("Público priorizado", cr.get("Público priorizado",""))}
+  {field_row("Ubicación",          cr.get("Ubicación",""))}
+  {field_row("Dependencias",       cr.get("Dependencias",""))}
+  {field_row("Aliados",            cr.get("Aliados",""))}
+  {field_row("Contacto",           cr.get("Contacto",""))}
+</div>""", unsafe_allow_html=True)
+
+            # Proyectos de esta convocatoria como expanders
+            proy_sub = df_p[df_p["convocatoria_id"] == int(cr["id"])]
             if not proy_sub.empty:
-                st.caption(f"{len(proy_sub)} proyecto(s) asociado(s)")
-                pc = ["Proyecto","BPIN","Valor","Dependencia","Responsable","Municipios"]
-                pc = [c for c in pc if c in proy_sub.columns]
-                st.dataframe(proy_sub[pc].reset_index(drop=True), use_container_width=True,
-                    height=200, hide_index=True,
-                    column_config={"Valor": st.column_config.NumberColumn("Valor $", format="$%,.0f")})
+                st.markdown(sec_title("Proyectos asociados",
+                    f"{len(proy_sub)} proyecto(s) · expande cada uno para ver la ficha completa"),
+                    unsafe_allow_html=True)
+                for _, pr in proy_sub.iterrows():
+                    pid_s = int(pr["id"])
+                    with st.expander(
+                        f"**{pr['Proyecto']}** · {pr['Dependencia']} · {fmt_money(pr['Valor'])}"
+                    ):
+                        e1,e2,e3,e4 = st.columns(4)
+                        e1.metric("Valor",         fmt_money(pr["Valor"]))
+                        e2.metric("Contrapartida", fmt_money(pr.get("Contrapartida",0)))
+                        e3.metric("Beneficiarios", int(pr.get("Total beneficiarios",0)))
+                        e4.metric("BPIN",          pr.get("BPIN","—"))
+                        fields_html = ""
+                        for f, lbl in [("Responsable","Responsable"),
+                                       ("Municipios","Municipios"),
+                                       ("Tipos beneficiarios","Beneficiarios")]:
+                            val = pr.get(f,"")
+                            if val and str(val).strip() not in ("","—","0","None"):
+                                fields_html += field_row(lbl, val)
+                        if fields_html:
+                            st.markdown(
+                                f'<div style="background:#fafafa;border:1px solid #ececec;'
+                                f'border-radius:8px;padding:14px 18px;margin:10px 0">'
+                                f'{fields_html}</div>', unsafe_allow_html=True)
+                        inds_s = _ind_d.get(pid_s, [])
+                        if inds_s:
+                            st.markdown(f'<div style="font-size:.78rem;font-weight:600;'
+                                        f'color:#1754ab;margin:12px 0 6px">'
+                                        f'📊 {len(inds_s)} indicador(es) MGA</div>',
+                                        unsafe_allow_html=True)
+                            df_is = pd.DataFrame(inds_s)
+                            ic = ["codigo","nombre","vigencia","meta_proyecto",
+                                  "meta_cuatrienio","m2024","m2025","m2026","m2027"]
+                            ic = [c for c in ic if c in df_is.columns]
+                            st.dataframe(df_is[ic].rename(columns={
+                                "codigo":"Código","nombre":"Indicador","vigencia":"Vigencia",
+                                "meta_proyecto":"Meta proy.","meta_cuatrienio":"Meta cuatrienio",
+                                "m2024":"2024","m2025":"2025","m2026":"2026","m2027":"2027",
+                            }).reset_index(drop=True),
+                            use_container_width=True,
+                            height=min(180, 60+len(inds_s)*40), hide_index=True)
+            else:
+                st.markdown(empty_state("Esta convocatoria no tiene proyectos asociados aún."),
+                            unsafe_allow_html=True)
 
-# ─── TAB 2: PROYECTOS FORMULADOS ──────────────────────────────────────────────
+# ─── TAB 2: PROYECTOS ─────────────────────────────────────────────────────────
 with tab2:
-    st.markdown(sec_title("Proyectos", f"{n_proy} proyectos formulados en sistema"),
-                unsafe_allow_html=True)
-    if not df_p.empty:
-        pa, pb = st.columns([3, 2])
-        with pa:
-            st.markdown(bar_chart(df_p["Dependencia"].value_counts(),
-                "Por dependencia", max_bars=15), unsafe_allow_html=True)
-            st.markdown(bar_chart(df_p.nlargest(15, "Valor").set_index("Proyecto")["Valor"],
-                "Top 15 por valor", fmt_val=fmt_money), unsafe_allow_html=True)
-        with pb:
-            st.markdown(donut_chart(df_p["Responsable"].value_counts(),
-                "Por responsable"), unsafe_allow_html=True)
-            mun_exp = df_p["Municipios"].str.split(" · ").explode().str.strip().value_counts()
-            mun_exp = mun_exp[mun_exp.index.str.len() > 0]
-            if not mun_exp.empty:
-                st.markdown(donut_chart(mun_exp, "Por municipio"), unsafe_allow_html=True)
-            ben_dep = df_p.groupby("Dependencia")["Total beneficiarios"].sum()
-            ben_dep = ben_dep[ben_dep > 0]
-            if not ben_dep.empty:
-                st.markdown(bar_chart(ben_dep.sort_values(ascending=False),
-                    "Beneficiarios por dependencia"), unsafe_allow_html=True)
+    st.markdown(sec_title("Proyectos",
+        "Selecciona un proyecto para ver su ficha completa, o explora el resumen general"),
+        unsafe_allow_html=True)
 
-    st.markdown(sec_title("Matriz de proyectos"), unsafe_allow_html=True)
-    ps = ["Proyecto","BPIN","Valor","Contrapartida","Dependencia","Responsable",
-          "Municipios","Total beneficiarios","N° indicadores MGA"]
-    ps = [c for c in ps if c in df_p.columns]
-    st.dataframe(df_p[ps].reset_index(drop=True), use_container_width=True, height=420,
-        hide_index=True,
-        column_config={
-            "Proyecto":            st.column_config.TextColumn(width=280),
-            "Valor":               st.column_config.NumberColumn("Valor $",       format="$%,.0f"),
-            "Contrapartida":       st.column_config.NumberColumn("Contrapartida", format="$%,.0f"),
-            "Total beneficiarios": st.column_config.NumberColumn("Beneficiarios", width=110),
-            "N° indicadores MGA":  st.column_config.NumberColumn("Indicadores",   width=100),
-        })
+    opciones_p2 = ["— Ver resumen general —"] + sorted(df_p["Proyecto"].tolist())
+    sel_p2 = st.selectbox("Proyecto", opciones_p2, key="sel_p2",
+                           label_visibility="collapsed")
 
-    st.markdown(sec_title("Ficha del proyecto"), unsafe_allow_html=True)
-    if not df_p.empty:
-        sel_p = st.selectbox("Selecciona para expandir", df_p["Proyecto"].tolist(), key="dp")
-        if sel_p:
-            rp = df_p[df_p["Proyecto"] == sel_p].iloc[0]
-            p1,p2,p3,p4 = st.columns(4)
-            p1.metric("Valor",         fmt_money(rp["Valor"]))
-            p2.metric("Contrapartida", fmt_money(rp["Contrapartida"]))
-            p3.metric("Beneficiarios", int(rp["Total beneficiarios"]))
-            p4.metric("BPIN",          rp["BPIN"])
-            with st.expander("Ver variables complementarias"):
-                for f in ["Dependencia","Responsable","Municipios",
-                           "Tipos beneficiarios","Indicadores MGA"]:
-                    if f in rp and str(rp[f]).strip() and str(rp[f]) not in ("—","0",""):
-                        st.markdown(f"**{f}:** {rp[f]}")
-            ind_sub = df_i[df_i["proyecto_id"] == int(rp["id"])] if not df_i.empty else pd.DataFrame()
-            if not ind_sub.empty:
-                st.caption(f"{len(ind_sub)} indicador(es) MGA integrados")
-                ic = ["codigo","nombre","vigencia","meta_proyecto","meta_cuatrienio",
-                      "m2024","m2025","m2026","m2027"]
-                ic = [c for c in ic if c in ind_sub.columns]
-                st.dataframe(ind_sub[ic].reset_index(drop=True),
-                    use_container_width=True, height=200, hide_index=True)
+    # ── MODO A: resumen general ───────────────────────────────────────────────
+    if sel_p2 == "— Ver resumen general —":
+        if not df_p.empty:
+            pa, pb = st.columns([3, 2])
+            with pa:
+                st.markdown(bar_chart(df_p["Dependencia"].value_counts(),
+                    "Por dependencia", max_bars=15), unsafe_allow_html=True)
+                st.markdown(bar_chart(df_p.nlargest(15,"Valor").set_index("Proyecto")["Valor"],
+                    "Top 15 por valor", fmt_val=fmt_money), unsafe_allow_html=True)
+            with pb:
+                st.markdown(donut_chart(df_p["Responsable"].value_counts(),
+                    "Por responsable"), unsafe_allow_html=True)
+                mun_exp = df_p["Municipios"].str.split(" · ").explode().str.strip().value_counts()
+                mun_exp = mun_exp[mun_exp.index.str.len() > 0]
+                if not mun_exp.empty:
+                    st.markdown(donut_chart(mun_exp, "Por municipio"), unsafe_allow_html=True)
+                ben_dep = df_p.groupby("Dependencia")["Total beneficiarios"].sum()
+                ben_dep = ben_dep[ben_dep > 0]
+                if not ben_dep.empty:
+                    st.markdown(bar_chart(ben_dep.sort_values(ascending=False),
+                        "Beneficiarios por dependencia"), unsafe_allow_html=True)
+
+        st.markdown(sec_title("Matriz de proyectos"), unsafe_allow_html=True)
+        ps = ["Proyecto","BPIN","Valor","Contrapartida","Dependencia","Responsable",
+              "Municipios","Total beneficiarios","N° indicadores MGA"]
+        ps = [c for c in ps if c in df_p.columns]
+        st.dataframe(df_p[ps].reset_index(drop=True), use_container_width=True, height=420,
+            hide_index=True,
+            column_config={
+                "Proyecto":            st.column_config.TextColumn(width=280),
+                "Valor":               st.column_config.NumberColumn("Valor $",       format="$%,.0f"),
+                "Contrapartida":       st.column_config.NumberColumn("Contrapartida", format="$%,.0f"),
+                "Total beneficiarios": st.column_config.NumberColumn("Beneficiarios", width=110),
+                "N° indicadores MGA":  st.column_config.NumberColumn("Indicadores",   width=100),
+            })
+
+    # ── MODO B: ficha de un proyecto ─────────────────────────────────────────
+    else:
+        rp_match = df_p[df_p["Proyecto"] == sel_p2]
+        if not rp_match.empty:
+            rp = rp_match.iloc[0]
+            pid_sel = int(rp["id"])
+
+            # Convocatoria vinculada
+            conv_link = df_c[df_c["id"] == rp.get("convocatoria_id")] \
+                        if rp.get("convocatoria_id") else pd.DataFrame()
+            conv_nombre = conv_link.iloc[0]["Convocatoria"] if not conv_link.empty else "—"
+            conv_estado = conv_link.iloc[0]["Estado"]       if not conv_link.empty else "—"
+
+            # Ficha del proyecto
+            dep_color = "#1754ab"
+            badges_p  = badge(rp["Dependencia"], dep_color)
+            for m in str(rp.get("Municipios","")).split(" · "):
+                if m.strip(): badges_p += badge(m.strip(), "#47b1d5")
+
+            st.markdown(f"""
+<div style="background:#f8fff9;border:1px solid #b8dfc4;border-left:5px solid #17743d;
+border-radius:10px;padding:26px 30px;margin:16px 0 20px">
+  <div style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:#003d6c;margin-bottom:10px">
+    {rp['Proyecto']}
+  </div>
+  <div style="margin-bottom:16px">{badges_p}</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px;margin-bottom:18px">
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Valor del proyecto</div>
+      <div style="font-size:1.5rem;font-family:'DM Serif Display',serif;color:#005931">{fmt_money(rp['Valor'])}</div>
+    </div>
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Contrapartida</div>
+      <div style="font-size:1.3rem;font-family:'DM Serif Display',serif;color:#444">{fmt_money(rp.get('Contrapartida',0))}</div>
+    </div>
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">Beneficiarios</div>
+      <div style="font-size:1.5rem;font-family:'DM Serif Display',serif;color:#1754ab">{int(rp.get('Total beneficiarios',0))}</div>
+    </div>
+    <div>
+      <div style="font-size:.66rem;color:#888;text-transform:uppercase;letter-spacing:.06em">BPIN</div>
+      <div style="font-size:1rem;color:#222;margin-top:4px">{rp.get('BPIN','—')}</div>
+    </div>
+  </div>
+  {field_row("Responsable",         rp.get("Responsable",""))}
+  {field_row("Tipos beneficiarios", rp.get("Tipos beneficiarios",""))}
+  {field_row("Indicadores MGA",     rp.get("Indicadores MGA",""))}
+</div>""", unsafe_allow_html=True)
+
+            # Convocatoria vinculada (card secundaria)
+            if conv_nombre != "—":
+                est_c = "#17743d" if "vigente" in conv_estado.lower() else "#cf7000"
+                st.markdown(
+                    f'<div style="background:#f8fbff;border:1px solid #cce0f5;'
+                    f'border-radius:8px;padding:16px 20px;margin-bottom:20px;'
+                    f'display:flex;align-items:center;gap:16px">'
+                    f'<div style="font-size:1.4rem">🔗</div>'
+                    f'<div>'
+                    f'<div style="font-size:.68rem;color:#888;text-transform:uppercase;'
+                    f'letter-spacing:.06em;margin-bottom:3px">Convocatoria vinculada</div>'
+                    f'<div style="font-size:.95rem;font-weight:600;color:#003d6c">{conv_nombre}</div>'
+                    f'</div>'
+                    f'<div style="margin-left:auto">{badge(conv_estado, est_c)}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True)
+
+            # Indicadores MGA del proyecto
+            inds_sel = _ind_d.get(pid_sel, [])
+            if inds_sel:
+                st.markdown(sec_title("Indicadores MGA",
+                    f"{len(inds_sel)} indicador(es) asociados a este proyecto"),
+                    unsafe_allow_html=True)
+                df_is2 = pd.DataFrame(inds_sel)
+                ic2 = ["codigo","nombre","vigencia","meta_proyecto",
+                       "meta_cuatrienio","m2024","m2025","m2026","m2027"]
+                ic2 = [c for c in ic2 if c in df_is2.columns]
+                st.dataframe(df_is2[ic2].rename(columns={
+                    "codigo":"Código","nombre":"Indicador","vigencia":"Vigencia",
+                    "meta_proyecto":"Meta proy.","meta_cuatrienio":"Meta cuatrienio",
+                    "m2024":"2024","m2025":"2025","m2026":"2026","m2027":"2027",
+                }).reset_index(drop=True),
+                use_container_width=True,
+                height=min(300, 60+len(inds_sel)*45), hide_index=True,
+                column_config={"Indicador": st.column_config.TextColumn(width=280)})
+            else:
+                st.markdown(empty_state("Sin indicadores MGA registrados para este proyecto."),
+                            unsafe_allow_html=True)
 
 # ─── TAB 3: RELACIONES MATRICIALES ────────────────────────────────────────────
 with tab3:
