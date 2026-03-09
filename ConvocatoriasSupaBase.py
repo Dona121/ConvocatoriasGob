@@ -468,9 +468,12 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS
 # ══════════════════════════════════════════════════════════════════════════════
+GEMINI_API_KEY = "AIzaSyDqHYMD79btZiRlXFHYXWU0SDaiNtIwGgA"
+GEMINI_MODEL   = "gemini-3-flash-preview"
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Resumen general", "Proyectos formulados",
-    "Relaciones matriciales", "Detalle Indicadores MGA", "Exportar",
+    "Relaciones matriciales", "✨ Asistente IA", "Exportar",
 ])
 
 # ─── TAB 1: RESUMEN GENERAL ───────────────────────────────────────────────────
@@ -796,48 +799,207 @@ border-radius:10px;padding:26px 30px;margin:16px 0 20px">
                     else:
                         st.caption("Sin indicadores MGA registrados para este proyecto.")
 
-# ─── TAB 4: INDICADORES MGA ───────────────────────────────────────────────────
+# ─── TAB 4: ASISTENTE IA (Gemini) ────────────────────────────────────────────
 with tab4:
-    st.markdown(sec_title("Indicadores MGA",
-        "Seguimiento de metas físicas e indicadores estándar"), unsafe_allow_html=True)
-    if df_i.empty:
-        st.markdown(empty_state("No hay metas físicas documentadas en esta selección."),
-                    unsafe_allow_html=True)
-    else:
-        ia, ib = st.columns([3, 2])
-        with ia:
-            st.markdown(bar_chart(df_i["nombre"].value_counts().head(15),
-                "Frecuencia de uso por indicador"), unsafe_allow_html=True)
-            meta_proy = df_i.groupby("nombre")["meta_proyecto"].sum() \
-                            .sort_values(ascending=False).head(12)
-            meta_proy = meta_proy[meta_proy > 0]
-            if not meta_proy.empty:
-                st.markdown(bar_chart(meta_proy, "Meta total de proyectos por indicador"),
-                            unsafe_allow_html=True)
-        with ib:
-            st.markdown(donut_chart(df_i["vigencia"].astype(str).value_counts(),
-                "Distribución por vigencia"), unsafe_allow_html=True)
-            ixp = df_i.groupby("Proyecto")["codigo"].count() \
-                      .sort_values(ascending=False).head(10)
-            st.markdown(bar_chart(ixp, "Top 10 proyectos con más indicadores"),
-                        unsafe_allow_html=True)
+    st.markdown(sec_title("Asistente IA",
+        "Consulta los datos de convocatorias y proyectos en lenguaje natural · Powered by Gemini"),
+        unsafe_allow_html=True)
 
-        st.markdown(sec_title("Matriz de indicadores"), unsafe_allow_html=True)
-        ishow = ["Proyecto","codigo","nombre","vigencia","meta_proyecto","meta_cuatrienio",
-                 "m2024","m2025","m2026","m2027","responsable_mga"]
-        ishow = [c for c in ishow if c in df_i.columns]
-        st.dataframe(
-            df_i[ishow].rename(columns={
-                "codigo":"Código","nombre":"Indicador","vigencia":"Vigencia",
-                "meta_proyecto":"Meta proy.","meta_cuatrienio":"Meta cuatrienio",
-                "m2024":"2024","m2025":"2025","m2026":"2026","m2027":"2027",
-                "responsable_mga":"Responsable MGA",
-            }).reset_index(drop=True),
-            use_container_width=True, height=420, hide_index=True,
-            column_config={
-                "Proyecto":  st.column_config.TextColumn(width=230),
-                "Indicador": st.column_config.TextColumn(width=250),
-            })
+    # ── CSS extra para el chat ────────────────────────────────────────────────
+    st.markdown("""
+    <style>
+    .chat-user {
+        background:#e8f0fe;border-radius:16px 16px 4px 16px;
+        padding:12px 16px;margin:6px 0 6px auto;
+        max-width:80%;font-size:.88rem;color:#1a1a2e;
+        border:1px solid #c5d5f5;
+    }
+    .chat-ai {
+        background:#ffffff;border-radius:16px 16px 16px 4px;
+        padding:14px 18px;margin:6px auto 6px 0;
+        max-width:85%;font-size:.88rem;color:#1a1a1a;
+        border:1px solid #e0e0e0;
+        box-shadow:0 2px 6px rgba(0,0,0,.04);
+    }
+    .chat-ai-label {
+        font-size:.68rem;color:#1754ab;font-weight:700;
+        letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;
+    }
+    .chat-scroll {
+        max-height:480px;overflow-y:auto;
+        padding:16px;background:#f8f9fb;
+        border:1px solid #e0e0e0;border-radius:10px;
+        margin-bottom:16px;
+    }
+    .chip-btn {
+        display:inline-block;background:#e8f0fe;color:#1754ab;
+        border:1px solid #c5d5f5;border-radius:20px;
+        padding:5px 14px;font-size:.78rem;font-weight:600;
+        cursor:pointer;margin:4px 4px 4px 0;
+        transition:background .2s;
+    }
+    </style>""", unsafe_allow_html=True)
+
+    # ── Construir contexto de datos (se hace una vez y se cachea en session) ──
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _build_context(conv_hash, proy_hash):
+        """Serializa los DataFrames como texto CSV compacto para el prompt."""
+        def _df_to_text(df, name, max_rows=300):
+            if df is None or df.empty:
+                return f"[{name}: sin datos]\n"
+            cols = [c for c in df.columns if c not in ("id","convocatoria_id","proyecto_id")]
+            sub  = df[cols].head(max_rows)
+            return f"=== {name.upper()} ({len(df)} registros totales) ===\n{sub.to_csv(index=False)}\n"
+
+        ctx  = _df_to_text(df_conv, "Convocatorias")
+        ctx += _df_to_text(df_proy, "Proyectos")
+        ctx += _df_to_text(df_rel,  "Relaciones (Convocatoria-Proyecto)")
+        ctx += _df_to_text(df_ind,  "Indicadores MGA")
+        return ctx
+
+    # Hashes simples para invalidar caché cuando cambien los datos
+    _ch = str(len(df_conv)) + str(df_conv["id"].sum() if not df_conv.empty else 0)
+    _ph = str(len(df_proy)) + str(df_proy["id"].sum() if not df_proy.empty else 0)
+    data_context = _build_context(_ch, _ph)
+
+    SYSTEM_PROMPT = f"""Eres un asistente de análisis de datos especializado en convocatorias \
+y proyectos de la Secretaría Distrital de Planeación (SDP) de Bogotá.
+
+Tienes acceso a la base de datos completa cargada desde Supabase. Los datos actualizados son:
+
+{data_context}
+
+INSTRUCCIONES:
+- Responde siempre en español, de forma clara y concisa.
+- Cuando el usuario pregunte por conteos, listas o comparaciones, extrae la respuesta \
+directamente de los datos anteriores.
+- Si la respuesta incluye una tabla, fórmala en Markdown con columnas alineadas.
+- Si la respuesta es un número o resumen corto, preséntalo con contexto.
+- Si preguntan algo que no está en los datos, dilo honestamente.
+- No inventes datos. Todo debe provenir de las tablas mostradas.
+- Puedes hacer cálculos: sumas, promedios, porcentajes, rankings, filtros por sector/estado/dependencia.
+- Respuestas máximo 400 palabras salvo que el usuario pida más detalle.
+"""
+
+    def _call_gemini(messages: list[dict]) -> str:
+        """Llama a la API de Gemini con historial completo."""
+        import urllib.request, json as _json
+        url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
+               f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}")
+        # Formato Gemini: role user/model
+        contents = []
+        # Sistema como primer turno user+model
+        contents.append({"role":"user",
+                          "parts":[{"text": f"[CONTEXTO DEL SISTEMA]\n{SYSTEM_PROMPT}"}]})
+        contents.append({"role":"model",
+                          "parts":[{"text":"Entendido. Estoy listo para responder preguntas "
+                                           "sobre las convocatorias y proyectos de la SDP."}]})
+        for m in messages:
+            contents.append({"role": m["role"], "parts":[{"text": m["content"]}]})
+        body = _json.dumps({
+            "contents": contents,
+            "generationConfig": {
+                "temperature":   0.3,
+                "maxOutputTokens": 1500,
+                "topP":          0.9,
+            }
+        }).encode()
+        req = urllib.request.Request(url, data=body,
+                                     headers={"Content-Type":"application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = _json.loads(resp.read())
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except urllib.error.HTTPError as e:
+            err = e.read().decode()
+            
+            if "not found" in err.lower() or "invalid" in err.lower():
+                return f"⚠️ Error de API: {err[:300]}"
+            return f"⚠️ Error HTTP {e.code}: {err[:300]}"
+        except Exception as ex:
+            return f"⚠️ Error al conectar con Gemini: {ex}"
+
+    # ── Session state ─────────────────────────────────────────────────────────
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []   # [{role, content}]
+
+    # ── Sugerencias rápidas ───────────────────────────────────────────────────
+    suggestions = [
+        "¿Cuántas convocatorias hay vigentes?",
+        "¿Cuál es el sector con más convocatorias?",
+        "Lista los 5 proyectos de mayor valor",
+        "¿Cuánto suman los proyectos por dependencia?",
+        "¿Qué convocatorias no tienen proyectos?",
+        "¿Cuál es el promedio de cobertura financiera?",
+        "¿Cuáles son los indicadores MGA más usados?",
+        "Resumen general de la base de datos",
+    ]
+
+    st.markdown('<div style="margin-bottom:10px;font-size:.8rem;color:#666;font-weight:600">'
+                'Preguntas sugeridas:</div>', unsafe_allow_html=True)
+    cols_s = st.columns(4)
+    for idx, sug in enumerate(suggestions):
+        if cols_s[idx % 4].button(sug, key=f"sug_{idx}", use_container_width=True):
+            st.session_state.chat_history.append({"role":"user","content":sug})
+            with st.spinner("Consultando Gemini..."):
+                resp = _call_gemini(st.session_state.chat_history)
+            st.session_state.chat_history.append({"role":"model","content":resp})
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Historial de mensajes ─────────────────────────────────────────────────
+    if st.session_state.chat_history:
+        chat_html = '<div class="chat-scroll">'
+        for msg in st.session_state.chat_history:
+            if msg["role"] == "user":
+                chat_html += (f'<div style="display:flex;justify-content:flex-end;margin:8px 0">'
+                              f'<div class="chat-user">👤 {msg["content"]}</div></div>')
+            else:
+                # Convertir markdown básico a HTML (negrita, listas, código)
+                content = msg["content"]
+                # Tablas markdown las dejamos como texto; st.markdown las renderiza
+                chat_html += (f'<div style="display:flex;justify-content:flex-start;margin:8px 0">'
+                              f'<div class="chat-ai">'
+                              f'<div class="chat-ai-label">✨ Gemini · Asistente IA</div>'
+                              f'<div style="white-space:pre-wrap">{content}</div>'
+                              f'</div></div>')
+        chat_html += '</div>'
+        st.markdown(chat_html, unsafe_allow_html=True)
+    else:
+        st.markdown(
+            '<div style="background:#f0f8fb;border:1px dashed #47b1d5;border-radius:10px;'
+            'padding:30px;text-align:center;color:#666;margin-bottom:16px">'
+            '💬 Escribe una pregunta o usa las sugerencias para empezar</div>',
+            unsafe_allow_html=True)
+
+    # ── Input del usuario ─────────────────────────────────────────────────────
+    col_inp, col_btn, col_clr = st.columns([6, 1, 1])
+    with col_inp:
+        user_input = st.text_input("Escribe tu pregunta", placeholder="Ej: ¿Cuál es el estado con más convocatorias?",
+                                   key="chat_input", label_visibility="collapsed")
+    with col_btn:
+        send = st.button("Enviar", type="primary", use_container_width=True)
+    with col_clr:
+        if st.button("Limpiar", use_container_width=True):
+            st.session_state.chat_history = []
+            st.rerun()
+
+    if send and user_input.strip():
+        st.session_state.chat_history.append({"role":"user","content":user_input.strip()})
+        with st.spinner("Consultando Gemini..."):
+            resp = _call_gemini(st.session_state.chat_history)
+        st.session_state.chat_history.append({"role":"model","content":resp})
+        st.rerun()
+
+    # ── Info de contexto ──────────────────────────────────────────────────────
+    n_chars = len(data_context)
+    st.markdown(
+        f'<div style="font-size:.72rem;color:#aaa;margin-top:8px;text-align:right">'
+        f'Contexto enviado a Gemini: {n_chars:,} caracteres · '
+        f'{len(df_conv)} convocatorias · {len(df_proy)} proyectos · '
+        f'{len(df_ind)} indicadores MGA</div>',
+        unsafe_allow_html=True)
 
 # ─── TAB 5: EXPORTAR ──────────────────────────────────────────────────────────
 with tab5:
