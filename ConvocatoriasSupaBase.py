@@ -78,8 +78,11 @@ except Exception:
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlb3JlZHZqcmhjZ3ZucnJ2bmZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzA0MDYsImV4cCI6MjA4ODE0NjQwNn0."
             "h9QNpcbiMXZfeheOAVHtYnC4-n8luCg92s-Xd_BFrZA")
 
-GEMINI_API_KEY = "AIzaSyBFNALaQRDpEx9RHofgfDxXG0-P4UCx9XE"
-GEMINI_MODEL   = "gemini-3-flash-preview"
+try:
+    GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
+except Exception:
+    GEMINI_API_KEY = ""  # configura en Streamlit Cloud → Settings → Secrets
+GEMINI_MODEL = "gemini-3-flash-preview"
 
 BRAND_COLORS = [
     "#17743d","#1754ab","#cf7000","#47b1d5","#d88c16",
