@@ -3,6 +3,7 @@ Convocatorias & Proyectos SDP — Streamlit + Supabase
 Schema Django v2.
 """
 import io, re, math
+from datetime import date, datetime, timedelta
 import pandas as pd
 import streamlit as st
 try:
@@ -493,6 +494,47 @@ if not df_i.empty and sel_dep:
     df_i = df_i[df_i["proyecto_id"].isin(df_p["id"])]
 
 # ── KPIs globales ──────────────────────────────────────────────────────────────
+# ── Notificaciones: convocatorias próximas a cerrar ───────────────────────────
+if not df_c.empty and "Fecha cierre" in df_c.columns:
+    _hoy = date.today()
+    _proximas = []
+    for _, _rc in df_c.iterrows():
+        _fc_str = str(_rc.get("Fecha cierre","")).strip()
+        if not _fc_str or _fc_str == "—": continue
+        try:
+            _fc = datetime.strptime(_fc_str, "%d/%m/%Y").date()
+            _dias = (_fc - _hoy).days
+            if 0 <= _dias <= 15:
+                _proximas.append((_dias, _rc["Convocatoria"], _fc_str, _rc.get("Estado","—")))
+        except Exception:
+            pass
+    if _proximas:
+        _proximas.sort()
+        _urgente = any(d <= 5 for d,*_ in _proximas)
+        _bg  = "#fff3cd" if not _urgente else "#fde8e8"
+        _bdr = "#cf7000" if not _urgente else "#c0392b"
+        _ico = "Aviso" if not _urgente else "Urgente"
+        _items = "".join(
+            f'<div style="display:flex;align-items:center;gap:10px;padding:5px 0;'
+            f'border-bottom:1px solid {_bdr}22">'
+            f'<span style="background:{_bdr};color:#fff;border-radius:20px;'
+            f'padding:1px 9px;font-size:.72rem;font-weight:700;white-space:nowrap">'
+            f'{"HOY" if d==0 else f"{d}d"}</span>'
+            f'<span style="font-size:.83rem;color:#222;flex:1">{nm}</span>'
+            f'<span style="font-size:.75rem;color:#666;white-space:nowrap">cierra {fc}</span>'
+            f'</div>'
+            for d,nm,fc,_ in _proximas
+        )
+        st.markdown(
+            f'<div style="background:{_bg};border:1px solid {_bdr};border-left:5px solid {_bdr};'
+            f'border-radius:8px;padding:14px 20px;margin-bottom:18px">'
+            f'<div style="font-weight:700;font-size:.85rem;color:{_bdr};margin-bottom:8px">'
+            f'{_ico} — {len(_proximas)} convocatoria(s) cierran en los próximos 15 días</div>'
+            f'{_items}</div>',
+            unsafe_allow_html=True
+        )
+
+
 n_conv  = df_c["id"].nunique() if not df_c.empty else 0
 n_proy  = df_p["id"].nunique() if not df_p.empty else 0
 m_conv  = df_c["Monto"].sum()  if not df_c.empty else 0
@@ -520,6 +562,289 @@ st.markdown(f"""
     {kpi("Valor proy.",    fmt_money(v_proy),"suma total",          border_color="#47b1d5", flex="1")}
     {kpi("Indicadores MGA",n_ind,            "registros",           border_color="#1754ab", flex="1")}
 </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# GENERADOR PDF — Ficha de convocatoria
+# ══════════════════════════════════════════════════════════════════════════════
+def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
+    """Genera el PDF de ficha completa de una convocatoria y retorna bytes."""
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
+        KeepTogether,
+    )
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+
+    buf = io.BytesIO()
+    W, H = A4
+    MARGIN = 2.0 * cm
+
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN, bottomMargin=MARGIN,
+        title=str(cr.get("Convocatoria","Convocatoria")),
+        author="SDP — Secretaría de Planeación",
+    )
+
+    # ── Paleta ────────────────────────────────────────────────────────────────
+    C_DARK   = colors.HexColor("#003d6c")
+    C_GREEN  = colors.HexColor("#005931")
+    C_BLUE   = colors.HexColor("#1754ab")
+    C_AMBER  = colors.HexColor("#cf7000")
+    C_TEAL   = colors.HexColor("#47b1d5")
+    C_LIGHT  = colors.HexColor("#f0f6ff")
+    C_LGRAY  = colors.HexColor("#f5f5f5")
+    C_BORDER = colors.HexColor("#d0dce8")
+    C_WHITE  = colors.white
+    C_TEXT   = colors.HexColor("#222222")
+    C_MUTED  = colors.HexColor("#666666")
+
+    # ── Estilos ───────────────────────────────────────────────────────────────
+    def S(name, **kw):
+        base = {
+            "fontName": "Helvetica", "fontSize": 10,
+            "textColor": C_TEXT, "leading": 14,
+            "spaceAfter": 0, "spaceBefore": 0,
+        }
+        base.update(kw)
+        return ParagraphStyle(name, **base)
+
+    sTitle   = S("title",   fontName="Helvetica-Bold", fontSize=20, textColor=C_WHITE,   leading=26)
+    sSub     = S("sub",     fontName="Helvetica",      fontSize=9,  textColor=colors.HexColor("#a5d6a7"), leading=13)
+    sH2      = S("h2",      fontName="Helvetica-Bold", fontSize=13, textColor=C_DARK,    leading=18, spaceBefore=10)
+    sH3      = S("h3",      fontName="Helvetica-Bold", fontSize=10, textColor=C_BLUE,    leading=14)
+    sLabel   = S("label",   fontName="Helvetica-Bold", fontSize=8,  textColor=C_MUTED,   leading=12)
+    sValue   = S("value",   fontName="Helvetica",      fontSize=9,  textColor=C_TEXT,    leading=13)
+    sKpiLbl  = S("kpilbl",  fontName="Helvetica-Bold", fontSize=7,  textColor=C_MUTED,   leading=10, alignment=TA_CENTER)
+    sKpiVal  = S("kpival",  fontName="Helvetica-Bold", fontSize=16, textColor=C_DARK,    leading=20, alignment=TA_CENTER)
+    sSmall   = S("small",   fontName="Helvetica",      fontSize=7,  textColor=C_MUTED,   leading=10, alignment=TA_CENTER)
+    sProy    = S("proy",    fontName="Helvetica-Bold", fontSize=9,  textColor=C_BLUE,    leading=13)
+    sBody    = S("body",    fontName="Helvetica",      fontSize=9,  textColor=C_TEXT,    leading=14)
+    sFooter  = S("footer",  fontName="Helvetica",      fontSize=7,  textColor=C_MUTED,   leading=10, alignment=TA_CENTER)
+    sTH      = S("th",      fontName="Helvetica-Bold", fontSize=8,  textColor=C_WHITE,   leading=11, alignment=TA_CENTER)
+    sTD      = S("td",      fontName="Helvetica",      fontSize=8,  textColor=C_TEXT,    leading=11)
+
+    story = []
+    TW = W - 2 * MARGIN   # usable width
+
+    # ── ENCABEZADO con fondo degradado simulado ───────────────────────────────
+    header_data = [[
+        Paragraph("SDP", S("sdp", fontName="Helvetica-Bold", fontSize=22, textColor=C_WHITE, leading=26)),
+        Paragraph(str(cr.get("Convocatoria", "")), sTitle),
+    ]]
+    header_tbl = Table(header_data, colWidths=[2.5*cm, TW - 2.5*cm])
+    header_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), C_DARK),
+        ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
+        ("LEFTPADDING",(0,0), (-1,-1), 14),
+        ("RIGHTPADDING",(0,0),(-1,-1), 14),
+        ("TOPPADDING", (0,0), (-1,-1), 18),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 18),
+        ("LINEBELOW",  (0,0), (-1,-1), 4, C_GREEN),
+    ]))
+    story.append(header_tbl)
+
+    # Sub-header: estado + fecha generación
+    sub_data = [[
+        Paragraph(f"Estado: {cr.get('Estado','—')}  ·  Sector: {cr.get('Sectores','—')}", sSub),
+        Paragraph(f"Generado: {date.today().strftime('%d/%m/%Y')}", S("sub_r", fontName="Helvetica", fontSize=8, textColor=colors.HexColor("#a5d6a7"), leading=12, alignment=TA_RIGHT)),
+    ]]
+    sub_tbl = Table(sub_data, colWidths=[TW*0.65, TW*0.35])
+    sub_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,-1), C_GREEN),
+        ("LEFTPADDING",(0,0), (-1,-1), 14),
+        ("RIGHTPADDING",(0,0),(-1,-1), 14),
+        ("TOPPADDING", (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 6),
+    ]))
+    story.append(sub_tbl)
+    story.append(Spacer(1, 14))
+
+    # ── KPIs en fila ──────────────────────────────────────────────────────────
+    v_conv  = float(cr.get("Valor proyectos", 0) or 0)
+    cob_val = cr.get("Cobertura (%)")
+    cob_str = f"{cob_val:.1f}%" if pd.notna(cob_val) else "—"
+    n_p_c   = int(cr.get("N° proyectos", 0))
+
+    def kpi_cell(label, value, sub="", bg=C_LIGHT, tc=C_DARK):
+        return [
+            Paragraph(label, sKpiLbl),
+            Paragraph(str(value), S("kv", fontName="Helvetica-Bold", fontSize=15, textColor=tc, leading=19, alignment=TA_CENTER)),
+            Paragraph(sub, sSmall),
+        ]
+
+    kpi_cols = [
+        kpi_cell("MONTO DISPONIBLE",    fmt_money(cr.get("Monto",0)), "convocado"),
+        kpi_cell("VALOR FORMULADO",     fmt_money(v_conv),            "en proyectos", tc=C_BLUE),
+        kpi_cell("COBERTURA",           cob_str,                      "financiera",   tc=C_AMBER),
+        kpi_cell("PROYECTOS",           str(n_p_c),                   "formulados",   tc=C_GREEN),
+    ]
+    kpi_w = TW / 4
+    kpi_tbl = Table(kpi_cols, colWidths=[kpi_w]*4, rowHeights=[12, 22, 10])
+    kpi_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,-1), C_LIGHT),
+        ("BACKGROUND",    (1,0), (1,-1),  colors.HexColor("#eef4ff")),
+        ("BACKGROUND",    (2,0), (2,-1),  colors.HexColor("#fff8ee")),
+        ("BACKGROUND",    (3,0), (3,-1),  colors.HexColor("#eefbf3")),
+        ("BOX",           (0,0), (0,-1),  0.5, C_BORDER),
+        ("BOX",           (1,0), (1,-1),  0.5, C_BORDER),
+        ("BOX",           (2,0), (2,-1),  0.5, C_BORDER),
+        ("BOX",           (3,0), (3,-1),  0.5, C_BORDER),
+        ("TOPPADDING",    (0,0), (-1,-1), 8),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(kpi_tbl)
+    story.append(Spacer(1, 16))
+
+    # ── FECHAS ────────────────────────────────────────────────────────────────
+    fecha_data = [[
+        Paragraph("FECHA APERTURA", sKpiLbl),
+        Paragraph(str(cr.get("Fecha apertura","—")), S("fd", fontName="Helvetica-Bold", fontSize=10, textColor=C_DARK, leading=14, alignment=TA_CENTER)),
+        Paragraph("FECHA CIERRE", sKpiLbl),
+        Paragraph(str(cr.get("Fecha cierre","—")), S("fc", fontName="Helvetica-Bold", fontSize=10, textColor=C_AMBER, leading=14, alignment=TA_CENTER)),
+    ]]
+    fecha_tbl = Table(fecha_data, colWidths=[TW*0.15, TW*0.35, TW*0.15, TW*0.35])
+    fecha_tbl.setStyle(TableStyle([
+        ("BACKGROUND",    (0,0), (-1,-1), C_LGRAY),
+        ("TOPPADDING",    (0,0), (-1,-1), 7),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 7),
+        ("BOX",           (0,0), (-1,-1), 0.5, C_BORDER),
+        ("INNERGRID",     (0,0), (-1,-1), 0.3, C_BORDER),
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    story.append(fecha_tbl)
+    story.append(Spacer(1, 18))
+
+    # ── DESCRIPCIÓN ───────────────────────────────────────────────────────────
+    def desc_section(title, value):
+        if not value or str(value).strip() in ("", "—", "None"): return []
+        return [
+            Paragraph(title, sH3),
+            Spacer(1, 3),
+            Paragraph(str(value).strip(), sBody),
+            Spacer(1, 10),
+        ]
+
+    story += desc_section("Qué ofrece",          cr.get("Qué ofrece",""))
+    story += desc_section("Quiénes pueden participar", cr.get("Quiénes participan",""))
+    story += desc_section("Público priorizado",   cr.get("Público priorizado",""))
+
+    # ── METADATOS en tabla de 2 columnas ─────────────────────────────────────
+    meta_rows = []
+    for lbl, val in [
+        ("Dependencias",  cr.get("Dependencias","")),
+        ("Ubicación",     cr.get("Ubicación","")),
+        ("Segmentos",     cr.get("Segmentos","")),
+        ("Aliados",       cr.get("Aliados","")),
+        ("Contacto",      cr.get("Contacto","")),
+    ]:
+        v = str(val).strip()
+        if v and v not in ("", "—", "None"):
+            meta_rows.append([
+                Paragraph(lbl, sLabel),
+                Paragraph(v, sValue),
+            ])
+
+    if meta_rows:
+        story.append(Paragraph("Información adicional", sH2))
+        story.append(Spacer(1, 6))
+        meta_tbl = Table(meta_rows, colWidths=[3*cm, TW - 3*cm])
+        meta_tbl.setStyle(TableStyle([
+            ("VALIGN",        (0,0), (-1,-1), "TOP"),
+            ("TOPPADDING",    (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+            ("LINEBELOW",     (0,0), (-1,-1), 0.3, C_BORDER),
+            ("BACKGROUND",    (0,0), (0,-1),  C_LGRAY),
+            ("LEFTPADDING",   (0,0), (0,-1),  8),
+            ("RIGHTPADDING",  (1,0), (1,-1),  4),
+        ]))
+        story.append(meta_tbl)
+        story.append(Spacer(1, 18))
+
+    # ── PROYECTOS ASOCIADOS ───────────────────────────────────────────────────
+    if not proy_sub.empty:
+        story.append(HRFlowable(width=TW, thickness=1.5, color=C_BLUE, spaceAfter=8))
+        story.append(Paragraph(f"Proyectos asociados ({len(proy_sub)})", sH2))
+        story.append(Spacer(1, 8))
+
+        # Tabla resumen de proyectos
+        th = [Paragraph(h, sTH) for h in ["Proyecto","Dependencia","Valor","Contrapartida","Beneficiarios","BPIN"]]
+        rows = [th]
+        for _, pr in proy_sub.iterrows():
+            rows.append([
+                Paragraph(str(pr.get("Proyecto",""))[:70], sTD),
+                Paragraph(str(pr.get("Dependencia","—")), sTD),
+                Paragraph(fmt_money(pr.get("Valor",0)), sTD),
+                Paragraph(fmt_money(pr.get("Contrapartida",0)), sTD),
+                Paragraph(str(int(pr.get("Total beneficiarios",0))), sTD),
+                Paragraph(str(pr.get("BPIN","—")), sTD),
+            ])
+        col_w = [TW*0.30, TW*0.22, TW*0.12, TW*0.12, TW*0.12, TW*0.12]
+        p_tbl = Table(rows, colWidths=col_w, repeatRows=1)
+        p_tbl.setStyle(TableStyle([
+            ("BACKGROUND",    (0,0), (-1,0),  C_DARK),
+            ("BACKGROUND",    (0,1), (-1,-1), C_WHITE),
+            ("ROWBACKGROUNDS",(0,1), (-1,-1), [C_WHITE, C_LGRAY]),
+            ("GRID",          (0,0), (-1,-1), 0.3, C_BORDER),
+            ("VALIGN",        (0,0), (-1,-1), "TOP"),
+            ("TOPPADDING",    (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+            ("LEFTPADDING",   (0,0), (-1,-1), 6),
+        ]))
+        story.append(KeepTogether([p_tbl]))
+        story.append(Spacer(1, 14))
+
+        # Detalle de indicadores por proyecto
+        for _, pr in proy_sub.iterrows():
+            pid_pdf = int(pr["id"])
+            inds = ind_d_local.get(pid_pdf, [])
+            if not inds: continue
+            proy_block = [
+                Spacer(1, 6),
+                Paragraph(str(pr.get("Proyecto",""))[:90], sProy),
+                Spacer(1, 4),
+            ]
+            ind_th = [Paragraph(h, sTH) for h in ["Codigo","Indicador","Vigencia","Meta Proyecto"]]
+            ind_rows = [ind_th]
+            for ind in inds:
+                ind_rows.append([
+                    Paragraph(str(ind.get("codigo","")), sTD),
+                    Paragraph(str(ind.get("nombre",""))[:80], sTD),
+                    Paragraph(str(ind.get("vigencia","")), sTD),
+                    Paragraph(str(ind.get("meta_proyecto","")), sTD),
+                ])
+            ind_tbl = Table(ind_rows, colWidths=[TW*0.15, TW*0.50, TW*0.17, TW*0.18], repeatRows=1)
+            ind_tbl.setStyle(TableStyle([
+                ("BACKGROUND",    (0,0), (-1,0),  C_BLUE),
+                ("ROWBACKGROUNDS",(0,1), (-1,-1), [C_WHITE, C_LGRAY]),
+                ("GRID",          (0,0), (-1,-1), 0.3, C_BORDER),
+                ("TOPPADDING",    (0,0), (-1,-1), 4),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+                ("LEFTPADDING",   (0,0), (-1,-1), 5),
+                ("VALIGN",        (0,0), (-1,-1), "TOP"),
+            ]))
+            proy_block.append(ind_tbl)
+            story.append(KeepTogether(proy_block))
+
+    # ── FOOTER ────────────────────────────────────────────────────────────────
+    story.append(Spacer(1, 20))
+    story.append(HRFlowable(width=TW, thickness=0.5, color=C_BORDER))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        f"Secretaría de Planeación (SDP) · Seguimiento de Convocatorias y Proyectos · "
+        f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        sFooter
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.getvalue()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS — 4 pestañas, sin Trazabilidad
@@ -703,6 +1028,17 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
   {field_row("Aliados",            cr.get("Aliados",""))}
   {field_row("Contacto",           cr.get("Contacto",""))}
 </div>""", unsafe_allow_html=True)
+
+            # Botón descarga PDF
+            _pdf_bytes = _gen_pdf_convocatoria(cr, df_p[df_p["convocatoria_id"]==int(cr["id"])], _ind_d)
+            _pdf_name  = re.sub(r"[^a-zA-Z0-9_]","_", str(cr["Convocatoria"]))[:60] + ".pdf"
+            st.download_button(
+                label="Descargar ficha en PDF",
+                data=_pdf_bytes,
+                file_name=_pdf_name,
+                mime="application/pdf",
+                use_container_width=False,
+            )
 
             # Proyectos asociados como expanders
             proy_sub = df_p[df_p["convocatoria_id"]==int(cr["id"])]
