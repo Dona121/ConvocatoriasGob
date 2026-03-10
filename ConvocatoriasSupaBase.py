@@ -48,8 +48,23 @@ section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span{
     color:#fff!important;font-size:.8rem!important;
     text-transform:uppercase;letter-spacing:.05em;}
+/* Dropdowns del sidebar */
+section[data-testid="stSidebar"] [data-baseweb="select"] *,
+section[data-testid="stSidebar"] [data-baseweb="select"] div,
+section[data-testid="stSidebar"] [data-baseweb="select"] span,
+section[data-testid="stSidebar"] [data-baseweb="select"] input{
+    color:#ffffff!important;}
 section[data-testid="stSidebar"] [data-baseweb="select"]>div{
-    background:#0a2a4a!important;border-color:#1754ab44!important;color:#fff!important;}
+    background:#0d2d4e!important;border-color:#1754ab66!important;}
+/* Tags de selección (chips) */
+section[data-testid="stSidebar"] [data-baseweb="tag"]{
+    background:#1754ab!important;color:#fff!important;}
+/* Dropdown abierto (listbox) */
+section[data-testid="stSidebar"] [data-baseweb="popover"] *,
+section[data-testid="stSidebar"] [role="listbox"] *{
+    background:#0d2d4e!important;color:#fff!important;}
+section[data-testid="stSidebar"] [role="option"]:hover{
+    background:#1754ab!important;}
 section[data-testid="stSidebar"] .stButton>button{
     background:#1754ab!important;color:#fff!important;
     border:none!important;transition:all .3s;border-radius:6px!important;}
