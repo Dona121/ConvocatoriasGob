@@ -33,12 +33,23 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#47b1d5;border-radius:10px}
 ::-webkit-scrollbar-thumb:hover{background:#1754ab}
-section[data-testid="stSidebar"]>div:first-child{
-    background:#041e35!important;border-right:none!important;
-    box-shadow:4px 0 15px rgba(0,0,0,.15);}
-section[data-testid="stSidebar"] label{
+/* Sidebar — múltiples selectores para Streamlit 1.35–1.41+ */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"]>div,
+section[data-testid="stSidebar"]>div:first-child,
+section[data-testid="stSidebar"]>div>div,
+[data-testid="stSidebarContent"],
+[data-testid="stSidebarUserContent"]{
+    background:#041e35!important;border-right:none!important;}
+section[data-testid="stSidebar"]{
+    box-shadow:4px 0 15px rgba(0,0,0,.15)!important;}
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span{
     color:#fff!important;font-size:.8rem!important;
     text-transform:uppercase;letter-spacing:.05em;}
+section[data-testid="stSidebar"] [data-baseweb="select"]>div{
+    background:#0a2a4a!important;border-color:#1754ab44!important;color:#fff!important;}
 section[data-testid="stSidebar"] .stButton>button{
     background:#1754ab!important;color:#fff!important;
     border:none!important;transition:all .3s;border-radius:6px!important;}
