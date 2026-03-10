@@ -579,7 +579,7 @@ with tab1:
                     sc_cols = [c for c in sc_cols if c in sin.columns]
                     st.dataframe(sin[sc_cols].reset_index(drop=True),
                         use_container_width=True, hide_index=True,
-                        column_config={"Monto": st.column_config.NumberColumn("Monto $", format="$%,.0f")})
+                        column_config={"Monto": st.column_config.NumberColumn("Monto $", format="$ %d")})
 
         st.markdown(sec_title("Directorio de convocatorias"), unsafe_allow_html=True)
         lc = ["Convocatoria","Estado","Fecha apertura","Fecha cierre","Monto",
@@ -589,9 +589,9 @@ with tab1:
             hide_index=True,
             column_config={
                 "Convocatoria":  st.column_config.TextColumn(width=280),
-                "Monto":         st.column_config.NumberColumn("Monto $",    format="$%,.0f"),
+                "Monto":         st.column_config.NumberColumn("Monto $",    format="$ %d"),
                 "N° proyectos":  st.column_config.NumberColumn("Proyectos",  width=90),
-                "Cobertura (%)": st.column_config.NumberColumn("Cob. %",     format="%.1f%%"),
+                "Cobertura (%)": st.column_config.NumberColumn("Cob. %",     format="%.1f"),
             })
 
     # ══ MODO B · FICHA DE CONVOCATORIA ═══════════════════════════════════════
@@ -768,8 +768,8 @@ with tab2:
             hide_index=True,
             column_config={
                 "Proyecto":            st.column_config.TextColumn(width=280),
-                "Valor":               st.column_config.NumberColumn("Valor $",       format="$%,.0f"),
-                "Contrapartida":       st.column_config.NumberColumn("Contrapartida", format="$%,.0f"),
+                "Valor":               st.column_config.NumberColumn("Valor $",       format="$ %d"),
+                "Contrapartida":       st.column_config.NumberColumn("Contrapartida", format="$ %d"),
                 "Total beneficiarios": st.column_config.NumberColumn("Beneficiarios", width=110),
                 "N° indicadores MGA":  st.column_config.NumberColumn("Indicadores",   width=100),
             })
@@ -1068,6 +1068,22 @@ with tab3:
                 )
             ).add_to(m)
 
+        # ── Plugins adicionales ──────────────────────────────────────────────
+        from folium.plugins import Fullscreen, MiniMap, MarkerCluster
+        Fullscreen(
+            position="topright",
+            title="Pantalla completa",
+            title_cancel="Salir",
+            force_separate_button=True,
+        ).add_to(m)
+        MiniMap(toggle_display=True, position="bottomright").add_to(m)
+
+        # Control de capas base
+        folium.TileLayer("CartoDB positron",   name="Claro",   control=True).add_to(m)
+        folium.TileLayer("CartoDB dark_matter", name="Oscuro",  control=True).add_to(m)
+        folium.TileLayer("OpenStreetMap",       name="Satélite", control=True).add_to(m)
+        folium.LayerControl(position="topright", collapsed=False).add_to(m)
+
         # Leyenda
         legend_html = """
 <div style="position:fixed;bottom:30px;left:30px;z-index:1000;
@@ -1082,8 +1098,35 @@ with tab3:
 </div>"""
         m.get_root().html.add_child(folium.Element(legend_html))
 
-        # Renderizar
-        st_folium(m, use_container_width=True, height=560, returned_objects=[])
+        # Renderizar con captura de clics
+        map_data = st_folium(
+            m,
+            use_container_width=True,
+            height=580,
+            returned_objects=["last_object_clicked_tooltip"],
+        )
+
+        # Si hicieron clic en un municipio, mostrar su detalle debajo del mapa
+        clicked = map_data.get("last_object_clicked_tooltip") if map_data else None
+        if clicked:
+            # Extraer nombre del municipio del tooltip (formato: "Municipio · N proy. · $valor")
+            mun_click = clicked.split(" · ")[0].strip() if " · " in clicked else clicked.strip()
+            if mun_click in mun_data:
+                d = mun_data[mun_click]
+                st.markdown(f"""
+<div style="background:#f8fbff;border:1px solid #cce0f5;border-left:5px solid #1754ab;
+border-radius:10px;padding:20px 26px;margin:12px 0">
+  <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:#003d6c;margin-bottom:14px">
+    📍 {mun_click}</div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">
+    {kpi("Proyectos",    str(len(d['proyectos'])),          "formulados",      border_color="#1754ab", flex="1")}
+    {kpi("Convocatorias",str(len(d['convocatorias'])),      "vinculadas",      border_color="#17743d", flex="1")}
+    {kpi("Valor total",  fmt_money(d['valor']),             "en proyectos",    border_color="#cf7000", flex="1")}
+    {kpi("Beneficiarios",f"{{d['beneficiarios']:,}}",       "en municipio",    border_color="#47b1d5", flex="1")}
+  </div>
+  <div style="font-size:.82rem;font-weight:600;color:#003d6c;margin-bottom:6px">Proyectos:</div>
+  {''.join(f'<div style="font-size:.8rem;color:#333;padding:3px 0;border-bottom:1px solid #f0f0f0">{p}</div>' for p in d['proyectos'])}
+</div>""", unsafe_allow_html=True)
 
         # Tabla resumen de municipios
         if mun_data:
@@ -1108,7 +1151,7 @@ with tab3:
                         "Municipio":         st.column_config.TextColumn(width=160),
                         "Proyectos":         st.column_config.NumberColumn(width=90),
                         "Convocatorias":     st.column_config.NumberColumn(width=110),
-                        "Valor total":       st.column_config.NumberColumn("Valor $", format="$%,.0f"),
+                        "Valor total":       st.column_config.NumberColumn("Valor $", format="$ %d"),
                         "Beneficiarios":     st.column_config.NumberColumn(width=110),
                         "Nombres proyectos": st.column_config.TextColumn(width=380),
                     })
