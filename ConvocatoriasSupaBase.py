@@ -3,7 +3,7 @@ Convocatorias & Proyectos SDP — Streamlit + Supabase
 Schema Django v2.
 """
 import io, re, math
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 import pandas as pd
 import streamlit as st
 try:
@@ -494,7 +494,25 @@ if not df_i.empty and sel_dep:
     df_i = df_i[df_i["proyecto_id"].isin(df_p["id"])]
 
 # ── KPIs globales ──────────────────────────────────────────────────────────────
-# ── Notificaciones: convocatorias próximas a cerrar ───────────────────────────
+n_conv  = df_c["id"].nunique() if not df_c.empty else 0
+n_proy  = df_p["id"].nunique() if not df_p.empty else 0
+m_conv  = df_c["Monto"].sum()  if not df_c.empty else 0
+v_proy  = df_p["Valor"].sum()  if not df_p.empty else 0
+n_ind   = len(df_i)            if not df_i.empty else 0
+conv_cp = df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
+pct_cp  = round(conv_cp/max(n_conv,1)*100) if n_conv>0 else 0
+
+st.markdown(
+    '<div style="background:linear-gradient(135deg,#003d6c 0%,#005931 100%);'
+    'border-radius:12px;padding:34px 40px 30px;margin-bottom:24px;'
+    'box-shadow:0 6px 15px rgba(0,0,0,.1)">'
+    '<div style="font-family:\'DM Serif Display\',serif;font-size:2.2rem;color:#fff;margin:0 0 8px">'
+    'Seguimiento de Convocatorias &amp; Proyectos</div>'
+    '<div style="color:#a5d6a7;font-size:.9rem;letter-spacing:.02em">'
+    'Matriz de seguimiento SDP · Actualización automática cada 5 minutos</div></div>',
+    unsafe_allow_html=True)
+
+# ── Notificaciones: convocatorias próximas a cerrar ─────────────────────────
 if not df_c.empty and "Fecha cierre" in df_c.columns:
     _hoy = date.today()
     _proximas = []
@@ -533,25 +551,6 @@ if not df_c.empty and "Fecha cierre" in df_c.columns:
             f'{_items}</div>',
             unsafe_allow_html=True
         )
-
-
-n_conv  = df_c["id"].nunique() if not df_c.empty else 0
-n_proy  = df_p["id"].nunique() if not df_p.empty else 0
-m_conv  = df_c["Monto"].sum()  if not df_c.empty else 0
-v_proy  = df_p["Valor"].sum()  if not df_p.empty else 0
-n_ind   = len(df_i)            if not df_i.empty else 0
-conv_cp = df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
-pct_cp  = round(conv_cp/max(n_conv,1)*100) if n_conv>0 else 0
-
-st.markdown(
-    '<div style="background:linear-gradient(135deg,#003d6c 0%,#005931 100%);'
-    'border-radius:12px;padding:34px 40px 30px;margin-bottom:24px;'
-    'box-shadow:0 6px 15px rgba(0,0,0,.1)">'
-    '<div style="font-family:\'DM Serif Display\',serif;font-size:2.2rem;color:#fff;margin:0 0 8px">'
-    'Seguimiento de Convocatorias &amp; Proyectos</div>'
-    '<div style="color:#a5d6a7;font-size:.9rem;letter-spacing:.02em">'
-    'Matriz de seguimiento SDP · Actualización automática cada 5 minutos</div></div>',
-    unsafe_allow_html=True)
 
 st.markdown(f"""
 <div style="display:flex;gap:14px;margin-bottom:24px;align-items:stretch;flex-wrap:wrap;">
@@ -983,7 +982,7 @@ with tab1:
                 "Convocatoria":  st.column_config.TextColumn(width=280),
                 "Monto":         st.column_config.NumberColumn("Monto $",    format="$ %d"),
                 "N° proyectos":  st.column_config.NumberColumn("Proyectos",  width=90),
-                "Cobertura (%)": st.column_config.NumberColumn("Cob. %",     format="%.1f%%"),
+                "Cobertura (%)": st.column_config.NumberColumn("Cob. %",     format="%.1f"),
             })
 
     # ══ MODO B · FICHA DE CONVOCATORIA ═══════════════════════════════════════
@@ -1032,9 +1031,14 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
   {field_row("Contacto",           cr.get("Contacto",""))}
 </div>""", unsafe_allow_html=True)
 
-            # Botón descarga PDF
-            _pdf_bytes = _gen_pdf_convocatoria(cr, df_p[df_p["convocatoria_id"]==int(cr["id"])], _ind_d)
-            _pdf_name  = re.sub(r"[^a-zA-Z0-9_]","_", str(cr["Convocatoria"]))[:60] + ".pdf"
+            # Botón descarga PDF — cached por convocatoria id
+            @st.cache_data(show_spinner=False)
+            def _cached_pdf(conv_id_key):
+                _sub = df_p[df_p["convocatoria_id"]==int(cr["id"])]
+                return _gen_pdf_convocatoria(cr, _sub, _ind_d)
+
+            _pdf_bytes = _cached_pdf(int(cr["id"]))
+            _pdf_name  = re.sub(r"[^a-zA-Z0-9]","_", str(cr["Convocatoria"]).encode("ascii","ignore").decode())[:60].strip("_") + ".pdf"
             st.download_button(
                 label="Descargar ficha en PDF",
                 data=_pdf_bytes,
