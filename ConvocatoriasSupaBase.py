@@ -18,7 +18,6 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 
 st.set_page_config(
     page_title="Convocatorias & Proyectos SDP",
-    page_icon="📋",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -492,7 +491,7 @@ st.markdown(f"""
 # TABS — 4 pestañas, sin Trazabilidad
 # ══════════════════════════════════════════════════════════════════════════════
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Convocatorias", "Proyectos", "🗺️ Mapa", "✨ Asistente IA", "Exportar",
+    "Convocatorias", "Proyectos", "Mapa", "Asistente IA", "Exportar",
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -574,7 +573,7 @@ with tab1:
             # Alerta: convocatorias sin proyectos
             sin = df_c[df_c["N° proyectos"]==0] if not df_c.empty else pd.DataFrame()
             if not sin.empty:
-                with st.expander(f"⚠️ {len(sin)} convocatoria(s) sin proyectos asociados"):
+                with st.expander(f"{len(sin)} convocatoria(s) sin proyectos asociados"):
                     sc_cols = ["Convocatoria","Estado","Monto","Sectores","Fecha cierre"]
                     sc_cols = [c for c in sc_cols if c in sin.columns]
                     st.dataframe(sin[sc_cols].reset_index(drop=True),
@@ -689,7 +688,7 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
                         if inds_p:
                             st.markdown(
                                 f'<div style="font-size:.78rem;font-weight:600;color:#1754ab;'
-                                f'margin:14px 0 6px">📊 {len(inds_p)} indicador(es) MGA</div>',
+                                f'margin:14px 0 6px">{len(inds_p)} indicador(es) MGA</div>',
                                 unsafe_allow_html=True)
                             _ind_table(inds_p)
                         else:
@@ -829,7 +828,7 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
 <div style="background:#f8fbff;border:1px solid #cce0f5;border-left:5px solid #1754ab;
 border-radius:10px;padding:20px 26px;margin-bottom:20px">
   <div style="font-size:.68rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">
-    🔗 Convocatoria vinculada</div>
+    Convocatoria vinculada</div>
   <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:#003d6c;margin-bottom:12px">
     {conv_row['Convocatoria']}</div>
   {stat_grid(
@@ -1034,13 +1033,13 @@ with tab3:
       </div>
     </div>
     <div style="font-size:.75rem;color:#555;margin-bottom:4px">
-      💰 <b>Valor formulado:</b> {valor}
+      <b>Valor formulado:</b> {valor}
     </div>
     <div style="font-size:.75rem;color:#555;margin-bottom:10px">
-      👥 <b>Beneficiarios:</b> {bens}
+      <b>Beneficiarios:</b> {bens}
     </div>
-    {'<div style="font-size:.78rem;font-weight:700;color:#003d6c;margin-bottom:4px">📋 Proyectos</div><ul style="margin:0;padding-left:16px">' + proy_list_html + '</ul>' if show_proy and n_p > 0 else ""}
-    {'<div style="font-size:.78rem;font-weight:700;color:#1754ab;margin:8px 0 4px">🔗 Convocatorias</div><ul style="margin:0;padding-left:16px">' + conv_list_html + '</ul>' if show_conv and n_c > 0 else ""}
+    {'<div style="font-size:.78rem;font-weight:700;color:#003d6c;margin-bottom:4px"> Proyectos</div><ul style="margin:0;padding-left:16px">' + proy_list_html + '</ul>' if show_proy and n_p > 0 else ""}
+    {'<div style="font-size:.78rem;font-weight:700;color:#1754ab;margin:8px 0 4px">Convocatorias</div><ul style="margin:0;padding-left:16px">' + conv_list_html + '</ul>' if show_conv and n_c > 0 else ""}
   </div>
 </div>"""
 
@@ -1069,7 +1068,7 @@ with tab3:
             ).add_to(m)
 
         # ── Plugins adicionales ──────────────────────────────────────────────
-        from folium.plugins import Fullscreen, MiniMap, MarkerCluster
+        from folium.plugins import Fullscreen, MiniMap
         Fullscreen(
             position="topright",
             title="Pantalla completa",
@@ -1079,7 +1078,6 @@ with tab3:
         MiniMap(toggle_display=True, position="bottomright").add_to(m)
 
         # Control de capas base
-        folium.TileLayer("CartoDB positron",   name="Claro",   control=True).add_to(m)
         folium.TileLayer("CartoDB dark_matter", name="Oscuro",  control=True).add_to(m)
         folium.TileLayer("OpenStreetMap",       name="Satélite", control=True).add_to(m)
         folium.LayerControl(position="topright", collapsed=False).add_to(m)
@@ -1094,7 +1092,7 @@ with tab3:
   <span style="color:#17743d">●</span> 1–2 &nbsp;
   <span style="color:#1754ab">●</span> 3–5 &nbsp;
   <span style="color:#003d6c">●</span> 6+<br>
-  <span style="font-size:11px;color:#888">El número indica cantidad de proyectos</span>
+  <span style="font-size:11px;color:#888">El número indica cantidad de proyectos por municipio</span>
 </div>"""
         m.get_root().html.add_child(folium.Element(legend_html))
 
@@ -1109,24 +1107,35 @@ with tab3:
         # Si hicieron clic en un municipio, mostrar su detalle debajo del mapa
         clicked = map_data.get("last_object_clicked_tooltip") if map_data else None
         if clicked:
-            # Extraer nombre del municipio del tooltip (formato: "Municipio · N proy. · $valor")
             mun_click = clicked.split(" · ")[0].strip() if " · " in clicked else clicked.strip()
             if mun_click in mun_data:
-                d = mun_data[mun_click]
-                st.markdown(f"""
-<div style="background:#f8fbff;border:1px solid #cce0f5;border-left:5px solid #1754ab;
-border-radius:10px;padding:20px 26px;margin:12px 0">
-  <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:#003d6c;margin-bottom:14px">
-    📍 {mun_click}</div>
-  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">
-    {kpi("Proyectos",    str(len(d['proyectos'])),          "formulados",      border_color="#1754ab", flex="1")}
-    {kpi("Convocatorias",str(len(d['convocatorias'])),      "vinculadas",      border_color="#17743d", flex="1")}
-    {kpi("Valor total",  fmt_money(d['valor']),             "en proyectos",    border_color="#cf7000", flex="1")}
-    {kpi("Beneficiarios",f"{{d['beneficiarios']:,}}",       "en municipio",    border_color="#47b1d5", flex="1")}
-  </div>
-  <div style="font-size:.82rem;font-weight:600;color:#003d6c;margin-bottom:6px">Proyectos:</div>
-  {''.join(f'<div style="font-size:.8rem;color:#333;padding:3px 0;border-bottom:1px solid #f0f0f0">{p}</div>' for p in d['proyectos'])}
-</div>""", unsafe_allow_html=True)
+                d           = mun_data[mun_click]
+                _n_p        = len(d["proyectos"])
+                _n_c        = len(d["convocatorias"])
+                _val        = fmt_money(d["valor"])
+                _ben        = f"{d['beneficiarios']:,}"
+                _proy_html  = "".join(
+                    f'<div style="font-size:.8rem;color:#333;padding:4px 0;'
+                    f'border-bottom:1px solid #f0f0f0">{p}</div>'
+                    for p in d["proyectos"]
+                )
+                _kpis = (
+                    kpi("Proyectos",     str(_n_p), "formulados",  border_color="#1754ab", flex="1") +
+                    kpi("Convocatorias", str(_n_c), "vinculadas",  border_color="#17743d", flex="1") +
+                    kpi("Valor total",   _val,      "en proyectos",border_color="#cf7000", flex="1") +
+                    kpi("Beneficiarios", _ben,      "en municipio",border_color="#47b1d5", flex="1")
+                )
+                st.markdown(
+                    f'<div style="background:#f8fbff;border:1px solid #cce0f5;'
+                    f'border-left:5px solid #1754ab;border-radius:10px;'
+                    f'padding:20px 26px;margin:12px 0">'
+                    f'<div style="font-family:\'DM Serif Display\',serif;font-size:1.3rem;'
+                    f'color:#003d6c;margin-bottom:14px">{mun_click}</div>'
+                    f'<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">{_kpis}</div>'
+                    f'<div style="font-size:.82rem;font-weight:600;color:#003d6c;margin-bottom:6px">'
+                    f'Proyectos:</div>{_proy_html}</div>',
+                    unsafe_allow_html=True,
+                )
 
         # Tabla resumen de municipios
         if mun_data:
@@ -1216,9 +1225,9 @@ INSTRUCCIONES:
             return data["candidates"][0]["content"]["parts"][0]["text"]
         except urllib.error.HTTPError as e:
             err = e.read().decode()
-            return f"⚠️ Error HTTP {e.code}: {err[:300]}"
+            return f"Error HTTP {e.code}: {err[:300]}"
         except Exception as ex:
-            return f"⚠️ Error al conectar con Gemini: {ex}"
+            return f"Error al conectar con Gemini: {ex}"
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
@@ -1252,11 +1261,11 @@ INSTRUCCIONES:
         for msg in st.session_state.chat_history:
             if msg["role"] == "user":
                 chat_html += (f'<div style="display:flex;justify-content:flex-end;margin:8px 0">'
-                              f'<div class="chat-user">👤 {msg["content"]}</div></div>')
+                              f'<div class="chat-user">{msg["content"]}</div></div>')
             else:
                 chat_html += (f'<div style="display:flex;justify-content:flex-start;margin:8px 0">'
                               f'<div class="chat-ai">'
-                              f'<div class="chat-ai-label">✨ Gemini · Asistente IA</div>'
+                              f'<div class="chat-ai-label">Gemini · Asistente IA</div>'
                               f'<div style="white-space:pre-wrap">{msg["content"]}</div>'
                               f'</div></div>')
         chat_html += '</div>'
@@ -1265,7 +1274,7 @@ INSTRUCCIONES:
         st.markdown(
             '<div style="background:#f0f8fb;border:1px dashed #47b1d5;border-radius:10px;'
             'padding:30px;text-align:center;color:#666;margin-bottom:16px">'
-            '💬 Escribe una pregunta o usa las sugerencias para empezar</div>',
+            'Escribe una pregunta o usa las sugerencias para empezar</div>',
             unsafe_allow_html=True)
 
     col_inp, col_btn, col_clr = st.columns([6,1,1])
