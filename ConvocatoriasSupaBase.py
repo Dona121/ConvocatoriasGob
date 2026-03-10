@@ -43,11 +43,11 @@ section[data-testid="stSidebar"]>div>div,
     background:#041e35!important;border-right:none!important;}
 section[data-testid="stSidebar"]{
     box-shadow:4px 0 15px rgba(0,0,0,.15)!important;}
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span{
+section[data-testid="stSidebar"] label{
     color:#fff!important;font-size:.8rem!important;
     text-transform:uppercase;letter-spacing:.05em;}
+section[data-testid="stSidebar"] p{
+    color:#fff!important;}
 /* Dropdowns del sidebar */
 section[data-testid="stSidebar"] [data-baseweb="select"] *,
 section[data-testid="stSidebar"] [data-baseweb="select"] div,
@@ -60,11 +60,14 @@ section[data-testid="stSidebar"] [data-baseweb="select"]>div{
 section[data-testid="stSidebar"] [data-baseweb="tag"]{
     background:#1754ab!important;color:#fff!important;}
 /* Dropdown abierto (listbox) */
-section[data-testid="stSidebar"] [data-baseweb="popover"] *,
-section[data-testid="stSidebar"] [role="listbox"] *{
+section[data-testid="stSidebar"] [data-baseweb="popover"] [role="listbox"],
+section[data-testid="stSidebar"] [role="listbox"]{
+    background:#0d2d4e!important;}
+section[data-testid="stSidebar"] [role="option"]{
     background:#0d2d4e!important;color:#fff!important;}
-section[data-testid="stSidebar"] [role="option"]:hover{
-    background:#1754ab!important;}
+section[data-testid="stSidebar"] [role="option"]:hover,
+section[data-testid="stSidebar"] [role="option"][aria-selected="true"]{
+    background:#1754ab!important;color:#fff!important;}
 section[data-testid="stSidebar"] .stButton>button{
     background:#1754ab!important;color:#fff!important;
     border:none!important;transition:all .3s;border-radius:6px!important;}
@@ -471,6 +474,11 @@ with st.sidebar:
         st.cache_data.clear(); st.rerun()
 
 df_c = df_conv.copy(); df_p = df_proy.copy()
+# Tipos numéricos consistentes para evitar fallos en isin/comparaciones float vs int
+for _df, _cols in [(df_c, ["id"]), (df_p, ["id","convocatoria_id"])]:
+    for _col in _cols:
+        if _col in _df.columns:
+            _df[_col] = pd.to_numeric(_df[_col], errors="coerce")
 if sel_est:  df_c = df_c[df_c["Estado"].isin(sel_est)]
 if sel_sec:  df_c = df_c[df_c["Sectores"].apply(lambda s: any(x in s for x in sel_sec))]
 if sel_dep:  df_p = df_p[df_p["Dependencia"].isin(sel_dep)]
@@ -616,7 +624,7 @@ with tab1:
                 "Convocatoria":  st.column_config.TextColumn(width=280),
                 "Monto":         st.column_config.NumberColumn("Monto $",    format="$ %d"),
                 "N° proyectos":  st.column_config.NumberColumn("Proyectos",  width=90),
-                "Cobertura (%)": st.column_config.NumberColumn("Cob. %",     format="%.1f"),
+                "Cobertura (%)": st.column_config.NumberColumn("Cob. %",     format="%.1f%%"),
             })
 
     # ══ MODO B · FICHA DE CONVOCATORIA ═══════════════════════════════════════
@@ -811,7 +819,7 @@ with tab2:
 
             # Convocatoria vinculada
             conv_id   = rp.get("convocatoria_id")
-            conv_link = df_conv[df_conv["id"]==conv_id] if conv_id else pd.DataFrame()
+            conv_link = df_conv[df_conv["id"]==pd.to_numeric(conv_id, errors="coerce")] if conv_id else pd.DataFrame()
             conv_row  = conv_link.iloc[0] if not conv_link.empty else None
 
             # Cobertura de este proyecto
@@ -934,7 +942,7 @@ with tab3:
         n = name.strip()
         low = n.lower()
         if low in ALIAS: return ALIAS[low]
-        for k, v in SUCRE_COORDS.items():
+        for k in SUCRE_COORDS:
             if k.lower() == low: return k
         return n
 
@@ -1098,19 +1106,18 @@ with tab3:
         Fullscreen(
             position="topright",
             title="Pantalla completa",
-            title_cancel="Salir",
             force_separate_button=True,
         ).add_to(m)
         MiniMap(toggle_display=True, position="bottomright").add_to(m)
 
         # Control de capas base
         folium.TileLayer("CartoDB dark_matter", name="Oscuro",  control=True).add_to(m)
-        folium.TileLayer("OpenStreetMap",       name="Satélite", control=True).add_to(m)
-        folium.LayerControl(position="topright", collapsed=False).add_to(m)
+        folium.TileLayer("OpenStreetMap",       name="Calles",   control=True).add_to(m)
+        folium.LayerControl(position="topright", collapsed=True).add_to(m)
 
         # Leyenda
         legend_html = """
-<div style="position:fixed;bottom:30px;left:30px;z-index:1000;
+<div style="position:fixed;bottom:20px;left:20px;z-index:999;
      background:white;border:1px solid #ccc;border-radius:8px;padding:12px 16px;
      font-family:Arial;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)">
   <b style="font-size:13px;color:#003d6c">Proyectos por municipio</b><br><br>
@@ -1211,8 +1218,8 @@ with tab4:
         ctx += _to_csv(df_ind,  "Indicadores MGA")
         return ctx
 
-    _ch = str(len(df_conv)) + str(df_conv["id"].sum() if not df_conv.empty else 0)
-    _ph = str(len(df_proy)) + str(df_proy["id"].sum() if not df_proy.empty else 0)
+    _ch = str(len(df_conv)) + str(int(df_conv["id"].max()) if not df_conv.empty else 0)
+    _ph = str(len(df_proy)) + str(int(df_proy["id"].max()) if not df_proy.empty else 0)
     data_context = _build_context(_ch, _ph)
 
     SYSTEM_PROMPT = f"""Eres un asistente de análisis de datos especializado en convocatorias \
@@ -1408,7 +1415,7 @@ with tab5:
                 ws.add_table(tbl)
             buf=io.BytesIO(); wb.save(buf)
         st.success("La matriz ha sido generada con éxito.")
-        st.download_button("⬇ Descargar Reporte_SDP.xlsx", data=buf.getvalue(),
+        st.download_button("Descargar Reporte_SDP.xlsx", data=buf.getvalue(),
             file_name="Reporte_SDP.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
