@@ -536,8 +536,39 @@ with tab1:
         "Selecciona una convocatoria para ver su ficha completa, o explora el resumen general"),
         unsafe_allow_html=True)
 
+    # ── Búsqueda por palabra clave ──────────────────────────────────────────
+    _sc1, _sc2 = st.columns([3, 2])
+    with _sc1:
+        busq_c = st.text_input(
+            "Buscar convocatoria",
+            placeholder="Buscar por nombre, sector, estado, dependencia...",
+            key="busq_c", label_visibility="collapsed"
+        )
+    with _sc2:
+        if busq_c.strip():
+            _term_c = busq_c.strip().lower()
+            _cols_c = ["Convocatoria","Estado","Sectores","Segmentos",
+                       "Ubicación","Dependencias","Aliados","Contacto",
+                       "Qué ofrece","Quiénes participan","Público priorizado"]
+            _cols_c = [c for c in _cols_c if c in df_c.columns]
+            _mask_c = df_c[_cols_c].apply(
+                lambda col: col.astype(str).str.lower().str.contains(_term_c, na=False)
+            ).any(axis=1)
+            df_c_busq = df_c[_mask_c]
+            n_res_c   = len(df_c_busq)
+            st.markdown(
+                f'<div style="padding:10px 0;font-size:.82rem;color:#1754ab;font-weight:600">'
+                f'{n_res_c} resultado(s) para "{busq_c}"</div>',
+                unsafe_allow_html=True)
+        else:
+            df_c_busq = df_c
+            st.markdown(
+                f'<div style="padding:10px 0;font-size:.82rem;color:#888">'
+                f'{len(df_c)} convocatoria(s) · usa el buscador para filtrar</div>',
+                unsafe_allow_html=True)
+
     opciones_c = ["— Ver resumen general —"] + (
-        sorted(df_c["Convocatoria"].tolist()) if not df_c.empty else [])
+        sorted(df_c_busq["Convocatoria"].tolist()) if not df_c_busq.empty else [])
     sel_c = st.selectbox("Convocatoria", opciones_c, key="sel_c",
                           label_visibility="collapsed")
 
@@ -617,8 +648,8 @@ with tab1:
         st.markdown(sec_title("Directorio de convocatorias"), unsafe_allow_html=True)
         lc = ["Convocatoria","Estado","Fecha apertura","Fecha cierre","Monto",
               "Sectores","Segmentos","Ubicación","N° proyectos","Cobertura (%)","Contacto"]
-        lc = [c for c in lc if c in df_c.columns]
-        st.dataframe(df_c[lc].reset_index(drop=True), use_container_width=True, height=420,
+        lc = [c for c in lc if c in df_c_busq.columns]
+        st.dataframe(df_c_busq[lc].reset_index(drop=True), use_container_width=True, height=420,
             hide_index=True,
             column_config={
                 "Convocatoria":  st.column_config.TextColumn(width=280),
@@ -736,8 +767,38 @@ with tab2:
         "Selecciona un proyecto para ver su ficha completa, o explora el resumen general"),
         unsafe_allow_html=True)
 
+    # ── Búsqueda por palabra clave ──────────────────────────────────────────
+    _sp1, _sp2 = st.columns([3, 2])
+    with _sp1:
+        busq_p = st.text_input(
+            "Buscar proyecto",
+            placeholder="Buscar por nombre, BPIN, dependencia, municipio, responsable...",
+            key="busq_p", label_visibility="collapsed"
+        )
+    with _sp2:
+        if busq_p.strip():
+            _term_p = busq_p.strip().lower()
+            _cols_p = ["Proyecto","BPIN","Dependencia","Responsable",
+                       "Municipios","Tipos beneficiarios","Indicadores MGA"]
+            _cols_p = [c for c in _cols_p if c in df_p.columns]
+            _mask_p = df_p[_cols_p].apply(
+                lambda col: col.astype(str).str.lower().str.contains(_term_p, na=False)
+            ).any(axis=1)
+            df_p_busq = df_p[_mask_p]
+            n_res_p   = len(df_p_busq)
+            st.markdown(
+                f'<div style="padding:10px 0;font-size:.82rem;color:#17743d;font-weight:600">'
+                f'{n_res_p} resultado(s) para "{busq_p}"</div>',
+                unsafe_allow_html=True)
+        else:
+            df_p_busq = df_p
+            st.markdown(
+                f'<div style="padding:10px 0;font-size:.82rem;color:#888">'
+                f'{len(df_p)} proyecto(s) · usa el buscador para filtrar</div>',
+                unsafe_allow_html=True)
+
     opciones_p = ["— Ver resumen general —"] + (
-        sorted(df_p["Proyecto"].tolist()) if not df_p.empty else [])
+        sorted(df_p_busq["Proyecto"].tolist()) if not df_p_busq.empty else [])
     sel_p = st.selectbox("Proyecto", opciones_p, key="sel_p",
                           label_visibility="collapsed")
 
@@ -796,8 +857,8 @@ with tab2:
         st.markdown(sec_title("Directorio de proyectos"), unsafe_allow_html=True)
         ps = ["Proyecto","BPIN","Valor","Contrapartida","Dependencia","Responsable",
               "Municipios","Total beneficiarios","N° indicadores MGA"]
-        ps = [c for c in ps if c in df_p.columns]
-        st.dataframe(df_p[ps].reset_index(drop=True), use_container_width=True, height=420,
+        ps = [c for c in ps if c in df_p_busq.columns]
+        st.dataframe(df_p_busq[ps].reset_index(drop=True), use_container_width=True, height=420,
             hide_index=True,
             column_config={
                 "Proyecto":            st.column_config.TextColumn(width=280),
@@ -969,8 +1030,8 @@ with tab3:
                     if not conv_match.empty:
                         mun_data[m]["convocatorias"].add(conv_match.iloc[0]["Convocatoria"])
 
-        # ── Controles ────────────────────────────────────────────────────────
-        mc1, mc2 = st.columns([2, 3])
+        # ── Controles fila 1 ─────────────────────────────────────────────────
+        mc1, mc2, mc3 = st.columns([2, 2, 3])
         with mc1:
             mapa_capas = st.multiselect(
                 "Mostrar en el mapa",
@@ -981,6 +1042,22 @@ with tab3:
             mapa_zoom = st.slider("Zoom inicial", 8, 12, 9, key="mapa_zoom")
 
         with mc2:
+            # Filtro por dependencia
+            deps_en_mapa = sorted(df_p["Dependencia"].dropna().unique().tolist()) if not df_p.empty else []
+            mapa_dep = st.multiselect(
+                "Filtrar por dependencia",
+                deps_en_mapa,
+                placeholder="Todas las dependencias",
+                key="mapa_dep"
+            )
+            # Búsqueda de municipio
+            mapa_busq = st.text_input(
+                "Buscar municipio",
+                placeholder="Ej: Sincelejo, Corozal...",
+                key="mapa_busq"
+            )
+
+        with mc3:
             # KPIs rápidos del mapa
             n_mun_cub = sum(1 for m in mun_data if m in SUCRE_COORDS)
             tot_val_map = sum(d["valor"] for d in mun_data.values())
@@ -992,32 +1069,80 @@ with tab3:
     {kpi("Beneficiarios", f"{tot_ben_map:,}", "en municipios", border_color="#cf7000", flex="1")}
 </div>""", unsafe_allow_html=True)
 
+        # Aplicar filtro de dependencia a mun_data
+        if mapa_dep:
+            df_p_mapa = df_p[df_p["Dependencia"].isin(mapa_dep)]
+            mun_data_filtrado: dict = {}
+            for _, row in df_p_mapa.iterrows():
+                muns = [_norm_mun(mn) for mn in str(row.get("Municipios","")).split(" · ") if mn.strip()]
+                for mn in muns:
+                    if mn not in mun_data_filtrado:
+                        mun_data_filtrado[mn] = {"proyectos":[], "convocatorias":set(), "valor":0, "beneficiarios":0}
+                    mun_data_filtrado[mn]["proyectos"].append(row["Proyecto"])
+                    mun_data_filtrado[mn]["valor"]        += float(row.get("Valor",0) or 0)
+                    mun_data_filtrado[mn]["beneficiarios"]+= int(row.get("Total beneficiarios",0) or 0)
+                    cid2 = row.get("convocatoria_id")
+                    if cid2:
+                        cm2 = df_conv[df_conv["id"]==cid2]
+                        if not cm2.empty:
+                            mun_data_filtrado[mn]["convocatorias"].add(cm2.iloc[0]["Convocatoria"])
+            mun_data_render = mun_data_filtrado
+        else:
+            mun_data_render = mun_data
+
+        # Municipio buscado (para centrar/resaltar)
+        mun_busq_norm = _norm_mun(mapa_busq.strip()) if mapa_busq.strip() else None
+        mun_busq_found = mun_busq_norm in SUCRE_COORDS if mun_busq_norm else False
+
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ── Construir mapa Folium ─────────────────────────────────────────────
+        # Centro: municipio buscado si existe, sino centro de Sucre
+        _map_center = list(SUCRE_COORDS[mun_busq_norm]) if mun_busq_found else [9.05, -75.15]
+        _map_zoom   = 11 if mun_busq_found else mapa_zoom
+
         m = folium.Map(
-            location=[9.05, -75.15],
-            zoom_start=mapa_zoom,
+            location=_map_center,
+            zoom_start=_map_zoom,
             tiles="CartoDB positron",
             control_scale=True,
         )
 
         # Dibujar todos los municipios como círculos de fondo (gris si sin datos)
         for mun, (lat, lng) in SUCRE_COORDS.items():
-            tiene_datos = mun in mun_data
+            tiene_datos = mun in mun_data_render
+            es_buscado  = (mun == mun_busq_norm)
             folium.CircleMarker(
                 location=[lat, lng],
-                radius=8,
-                color="#cccccc" if not tiene_datos else "#003d6c",
+                radius=10 if es_buscado else 8,
+                color="#e68878" if es_buscado else ("#cccccc" if not tiene_datos else "#003d6c"),
                 fill=True,
-                fill_color="#eeeeee" if not tiene_datos else "#e8f0fe",
-                fill_opacity=0.5,
-                weight=1,
+                fill_color="#e68878" if es_buscado else ("#eeeeee" if not tiene_datos else "#e8f0fe"),
+                fill_opacity=0.7 if es_buscado else 0.5,
+                weight=3 if es_buscado else 1,
                 tooltip=mun if not tiene_datos else None,
             ).add_to(m)
 
+        # ── Ruta entre municipios cubiertos ──────────────────────────────────
+        muns_con_proy = [mn for mn in mun_data_render if mn in SUCRE_COORDS]
+        if len(muns_con_proy) >= 2:
+            # Ordenar de norte a sur (por latitud desc) para trazar ruta coherente
+            muns_ordenados = sorted(
+                muns_con_proy,
+                key=lambda mn: -SUCRE_COORDS[mn][0]
+            )
+            ruta_coords = [list(SUCRE_COORDS[mn]) for mn in muns_ordenados]
+            folium.PolyLine(
+                locations=ruta_coords,
+                color="#47b1d5",
+                weight=2,
+                opacity=0.5,
+                dash_array="6 4",
+                tooltip="Ruta entre municipios cubiertos",
+            ).add_to(m)
+
         # Marcadores con datos
-        for mun, data in mun_data.items():
+        for mun, data in mun_data_render.items():
             if mun not in SUCRE_COORDS:
                 continue
             lat, lng = SUCRE_COORDS[mun]
@@ -1141,8 +1266,8 @@ with tab3:
         clicked = map_data.get("last_object_clicked_tooltip") if map_data else None
         if clicked:
             mun_click = clicked.split(" · ")[0].strip() if " · " in clicked else clicked.strip()
-            if mun_click in mun_data:
-                d           = mun_data[mun_click]
+            if mun_click in mun_data_render:
+                d           = mun_data_render[mun_click]
                 _n_p        = len(d["proyectos"])
                 _n_c        = len(d["convocatorias"])
                 _val        = fmt_money(d["valor"])
@@ -1171,10 +1296,10 @@ with tab3:
                 )
 
         # Tabla resumen de municipios
-        if mun_data:
+        if mun_data_render:
             st.markdown(sec_title("Detalle por municipio"), unsafe_allow_html=True)
             mun_rows = []
-            for mun, data in sorted(mun_data.items(), key=lambda x: -len(x[1]["proyectos"])):
+            for mun, data in sorted(mun_data_render.items(), key=lambda x: -len(x[1]["proyectos"])):
                 if mun in SUCRE_COORDS:
                     mun_rows.append({
                         "Municipio":     mun,
