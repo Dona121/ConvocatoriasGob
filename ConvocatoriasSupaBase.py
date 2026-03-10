@@ -5,6 +5,12 @@ Schema Django v2.
 import io, re, math
 import pandas as pd
 import streamlit as st
+try:
+    import folium
+    from streamlit_folium import st_folium
+    _FOLIUM_OK = True
+except ImportError:
+    _FOLIUM_OK = False
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -82,7 +88,7 @@ try:
     GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
 except Exception:
     GEMINI_API_KEY = ""  # configura en Streamlit Cloud → Settings → Secrets
-GEMINI_MODEL = "gemini-3-flash-preview"
+GEMINI_MODEL = "gemini-2.0-flash"
 
 BRAND_COLORS = [
     "#17743d","#1754ab","#cf7000","#47b1d5","#d88c16",
@@ -485,8 +491,8 @@ st.markdown(f"""
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS — 4 pestañas, sin Trazabilidad
 # ══════════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4 = st.tabs([
-    "Convocatorias", "Proyectos", "✨ Asistente IA", "Exportar",
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "Convocatorias", "Proyectos", "🗺️ Mapa", "✨ Asistente IA", "Exportar",
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -854,9 +860,263 @@ border-radius:10px;padding:20px 26px;margin-bottom:20px">
                             unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 3 · ASISTENTE IA (Gemini)
+# TAB 3 · MAPA — Cobertura municipal Sucre
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
+    st.markdown(sec_title("Mapa de cobertura municipal",
+        "Proyectos y convocatorias por municipio · Departamento de Sucre"),
+        unsafe_allow_html=True)
+
+    # Coordenadas centroide de cada municipio de Sucre (WGS84)
+    SUCRE_COORDS = {
+        "Sincelejo":          (9.3047,  -75.3978),
+        "Buenavista":         (9.3167,  -75.0000),
+        "Caimito":            (8.7833,  -75.0833),
+        "Colosó":             (9.4833,  -75.3500),
+        "Corozal":            (9.3167,  -75.2833),
+        "Coveñas":            (9.4000,  -75.6833),
+        "Chalán":             (9.5167,  -75.2500),
+        "El Roble":           (9.2167,  -75.1833),
+        "Galeras":            (9.1167,  -74.8833),
+        "Guaranda":           (8.4667,  -74.5333),
+        "La Unión":           (8.8667,  -75.2833),
+        "Los Palmitos":       (9.3667,  -75.1667),
+        "Majagual":           (8.5333,  -74.6333),
+        "Morroa":             (9.3333,  -75.3000),
+        "Ovejas":             (9.5167,  -75.2167),
+        "Palmito":            (9.3833,  -75.5333),
+        "Sampués":            (9.1833,  -75.3833),
+        "San Benito Abad":    (8.9333,  -75.0167),
+        "San Juan de Betulia":(9.2833,  -75.1333),
+        "San Marcos":         (8.6667,  -75.1333),
+        "San Onofre":         (9.7333,  -75.5167),
+        "San Pedro":          (9.3500,  -75.2500),
+        "Sincé":              (9.2333,  -75.1500),
+        "Sucre":              (8.8167,  -74.7167),
+        "Tolú":               (9.5167,  -75.5833),
+        "Toluviejo":          (9.4667,  -75.4333),
+    }
+
+    # Alias de normalización (por si en BD viene con variante ortográfica)
+    ALIAS = {
+        "toluuviejo": "Toluviejo", "tolú viejo": "Toluviejo", "tolu viejo": "Toluviejo",
+        "san juan betulia": "San Juan de Betulia",
+        "santiago de tolú": "Tolú", "santiago de tolu": "Tolú",
+        "tolu": "Tolú",
+    }
+
+    def _norm_mun(name):
+        n = name.strip()
+        low = n.lower()
+        if low in ALIAS: return ALIAS[low]
+        for k, v in SUCRE_COORDS.items():
+            if k.lower() == low: return k
+        return n
+
+    if not _FOLIUM_OK:
+        st.warning("Para ver el mapa instala: `pip install folium streamlit-folium`")
+    elif df_p.empty and df_c.empty:
+        st.markdown(empty_state("Sin datos para mostrar en el mapa."), unsafe_allow_html=True)
+    else:
+        # ── Construir tabla municipio → proyectos / convocatorias ────────────
+        mun_data: dict = {}   # {municipio: {proyectos:[], convocatorias:set()}}
+
+        # Proyectos por municipio
+        for _, row in df_p.iterrows():
+            muns = [_norm_mun(m) for m in str(row.get("Municipios","")).split(" · ") if m.strip()]
+            for m in muns:
+                if m not in mun_data:
+                    mun_data[m] = {"proyectos": [], "convocatorias": set(), "valor": 0, "beneficiarios": 0}
+                mun_data[m]["proyectos"].append(row["Proyecto"])
+                mun_data[m]["valor"]        += float(row.get("Valor",0) or 0)
+                mun_data[m]["beneficiarios"]+= int(row.get("Total beneficiarios",0) or 0)
+                cid = row.get("convocatoria_id")
+                if cid:
+                    conv_match = df_conv[df_conv["id"]==cid]
+                    if not conv_match.empty:
+                        mun_data[m]["convocatorias"].add(conv_match.iloc[0]["Convocatoria"])
+
+        # ── Controles ────────────────────────────────────────────────────────
+        mc1, mc2 = st.columns([2, 3])
+        with mc1:
+            mapa_capas = st.multiselect(
+                "Mostrar en el mapa",
+                ["Proyectos", "Convocatorias"],
+                default=["Proyectos", "Convocatorias"],
+                key="mapa_capas"
+            )
+            mapa_zoom = st.slider("Zoom inicial", 8, 12, 9, key="mapa_zoom")
+
+        with mc2:
+            # KPIs rápidos del mapa
+            n_mun_cub = sum(1 for m in mun_data if m in SUCRE_COORDS)
+            tot_val_map = sum(d["valor"] for d in mun_data.values())
+            tot_ben_map = sum(d["beneficiarios"] for d in mun_data.values())
+            st.markdown(f"""
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">
+    {kpi("Municipios cubiertos", f"{n_mun_cub}/26", "del departamento", border_color="#17743d", flex="1")}
+    {kpi("Valor total",  fmt_money(tot_val_map), "en municipios", border_color="#1754ab", flex="1")}
+    {kpi("Beneficiarios", f"{tot_ben_map:,}", "en municipios", border_color="#cf7000", flex="1")}
+</div>""", unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── Construir mapa Folium ─────────────────────────────────────────────
+        m = folium.Map(
+            location=[9.05, -75.15],
+            zoom_start=mapa_zoom,
+            tiles="CartoDB positron",
+            control_scale=True,
+        )
+
+        # Dibujar todos los municipios como círculos de fondo (gris si sin datos)
+        for mun, (lat, lng) in SUCRE_COORDS.items():
+            tiene_datos = mun in mun_data
+            folium.CircleMarker(
+                location=[lat, lng],
+                radius=8,
+                color="#cccccc" if not tiene_datos else "#003d6c",
+                fill=True,
+                fill_color="#eeeeee" if not tiene_datos else "#e8f0fe",
+                fill_opacity=0.5,
+                weight=1,
+                tooltip=mun if not tiene_datos else None,
+            ).add_to(m)
+
+        # Marcadores con datos
+        for mun, data in mun_data.items():
+            if mun not in SUCRE_COORDS:
+                continue
+            lat, lng = SUCRE_COORDS[mun]
+            n_p   = len(data["proyectos"])
+            n_c   = len(data["convocatorias"])
+            valor = fmt_money(data["valor"])
+            bens  = f'{data["beneficiarios"]:,}'
+
+            # Color según número de proyectos
+            if n_p == 0:   color = "#47b1d5"
+            elif n_p <= 2: color = "#17743d"
+            elif n_p <= 5: color = "#1754ab"
+            else:          color = "#003d6c"
+
+            # Radio proporcional al valor
+            radius = 10 + min(n_p * 4, 30)
+
+            # Popup HTML rico
+            proy_list_html = "".join(
+                f'<li style="font-size:.78rem;color:#333;margin-bottom:3px">{p}</li>'
+                for p in data["proyectos"][:8]
+            )
+            if len(data["proyectos"]) > 8:
+                proy_list_html += f'<li style="color:#888;font-size:.75rem">...y {len(data["proyectos"])-8} más</li>'
+
+            conv_list_html = "".join(
+                f'<li style="font-size:.78rem;color:#1754ab;margin-bottom:3px">{c}</li>'
+                for c in list(data["convocatorias"])[:5]
+            )
+
+            show_proy = "Proyectos" in mapa_capas
+            show_conv = "Convocatorias" in mapa_capas
+
+            popup_html = f"""
+<div style="font-family:Arial,sans-serif;min-width:240px;max-width:320px">
+  <div style="background:#003d6c;color:#fff;padding:10px 14px;border-radius:6px 6px 0 0;
+              font-weight:700;font-size:.95rem">{mun}</div>
+  <div style="padding:12px 14px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 6px 6px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:#f0f8ff;border-radius:6px;padding:6px 10px;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:#003d6c">{n_p}</div>
+        <div style="font-size:.68rem;color:#666">Proyectos</div>
+      </div>
+      <div style="background:#f0fff4;border-radius:6px;padding:6px 10px;text-align:center">
+        <div style="font-size:1.3rem;font-weight:700;color:#17743d">{n_c}</div>
+        <div style="font-size:.68rem;color:#666">Convocatorias</div>
+      </div>
+    </div>
+    <div style="font-size:.75rem;color:#555;margin-bottom:4px">
+      💰 <b>Valor formulado:</b> {valor}
+    </div>
+    <div style="font-size:.75rem;color:#555;margin-bottom:10px">
+      👥 <b>Beneficiarios:</b> {bens}
+    </div>
+    {'<div style="font-size:.78rem;font-weight:700;color:#003d6c;margin-bottom:4px">📋 Proyectos</div><ul style="margin:0;padding-left:16px">' + proy_list_html + '</ul>' if show_proy and n_p > 0 else ""}
+    {'<div style="font-size:.78rem;font-weight:700;color:#1754ab;margin:8px 0 4px">🔗 Convocatorias</div><ul style="margin:0;padding-left:16px">' + conv_list_html + '</ul>' if show_conv and n_c > 0 else ""}
+  </div>
+</div>"""
+
+            folium.CircleMarker(
+                location=[lat, lng],
+                radius=radius,
+                color=color,
+                fill=True,
+                fill_color=color,
+                fill_opacity=0.75,
+                weight=2,
+                popup=folium.Popup(popup_html, max_width=340),
+                tooltip=f"{mun} · {n_p} proy. · {valor}",
+            ).add_to(m)
+
+            # Etiqueta con número de proyectos encima del marcador
+            folium.Marker(
+                location=[lat, lng],
+                icon=folium.DivIcon(
+                    html=f'<div style="font-family:Arial;font-size:11px;font-weight:800;'
+                         f'color:#fff;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.5);'
+                         f'margin-top:-6px">{n_p}</div>',
+                    icon_size=(30, 20),
+                    icon_anchor=(15, 10),
+                )
+            ).add_to(m)
+
+        # Leyenda
+        legend_html = """
+<div style="position:fixed;bottom:30px;left:30px;z-index:1000;
+     background:white;border:1px solid #ccc;border-radius:8px;padding:12px 16px;
+     font-family:Arial;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+  <b style="font-size:13px;color:#003d6c">Proyectos por municipio</b><br><br>
+  <span style="color:#47b1d5">●</span> Sin proyectos &nbsp;
+  <span style="color:#17743d">●</span> 1–2 &nbsp;
+  <span style="color:#1754ab">●</span> 3–5 &nbsp;
+  <span style="color:#003d6c">●</span> 6+<br>
+  <span style="font-size:11px;color:#888">El número indica cantidad de proyectos</span>
+</div>"""
+        m.get_root().html.add_child(folium.Element(legend_html))
+
+        # Renderizar
+        st_folium(m, use_container_width=True, height=560, returned_objects=[])
+
+        # Tabla resumen de municipios
+        if mun_data:
+            st.markdown(sec_title("Detalle por municipio"), unsafe_allow_html=True)
+            mun_rows = []
+            for mun, data in sorted(mun_data.items(), key=lambda x: -len(x[1]["proyectos"])):
+                if mun in SUCRE_COORDS:
+                    mun_rows.append({
+                        "Municipio":     mun,
+                        "Proyectos":     len(data["proyectos"]),
+                        "Convocatorias": len(data["convocatorias"]),
+                        "Valor total":   data["valor"],
+                        "Beneficiarios": data["beneficiarios"],
+                        "Nombres proyectos": " · ".join(data["proyectos"]),
+                    })
+            if mun_rows:
+                df_mun = pd.DataFrame(mun_rows)
+                st.dataframe(df_mun.reset_index(drop=True),
+                    use_container_width=True, height=min(420, 60+len(mun_rows)*42),
+                    hide_index=True,
+                    column_config={
+                        "Municipio":         st.column_config.TextColumn(width=160),
+                        "Proyectos":         st.column_config.NumberColumn(width=90),
+                        "Convocatorias":     st.column_config.NumberColumn(width=110),
+                        "Valor total":       st.column_config.NumberColumn("Valor $", format="$%,.0f"),
+                        "Beneficiarios":     st.column_config.NumberColumn(width=110),
+                        "Nombres proyectos": st.column_config.TextColumn(width=380),
+                    })
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 4 · ASISTENTE IA (Gemini)
+# ─────────────────────────────────────────────────────────────────────────────
+with tab4:
     st.markdown(sec_title("Asistente IA",
         "Consulta los datos de convocatorias y proyectos en lenguaje natural · Powered by Gemini"),
         unsafe_allow_html=True)
@@ -985,13 +1245,13 @@ INSTRUCCIONES:
     st.markdown(
         f'<div style="font-size:.72rem;color:#aaa;margin-top:8px;text-align:right">'
         f'Contexto: {len(data_context):,} caracteres · '
-        f'{len(df_conv)} convocatorias · {len(df_proy)} proyectos · {len(df_ind)} indicadores</div>',
+        f'{len(df_conv)} convocatorias · {len(df_proy)} proyectos · {len(df_ind)} indicadores </div>',
         unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 4 · EXPORTAR
+# TAB 5 · EXPORTAR
 # ─────────────────────────────────────────────────────────────────────────────
-with tab4:
+with tab5:
     st.markdown(sec_title("Exportar Reporte Maestro",
         "Generación de sábana de datos consolidada (.xlsx)"), unsafe_allow_html=True)
 
