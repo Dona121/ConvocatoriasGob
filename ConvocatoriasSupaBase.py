@@ -671,21 +671,24 @@ def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
     cob_str = f"{cob_val:.1f}%" if pd.notna(cob_val) else "—"
     n_p_c   = int(cr.get("N° proyectos", 0))
 
-    def kpi_cell(label, value, sub="", bg=C_LIGHT, tc=C_DARK):
-        return [
-            Paragraph(label, sKpiLbl),
-            Paragraph(str(value), S("kv", fontName="Helvetica-Bold", fontSize=15, textColor=tc, leading=19, alignment=TA_CENTER)),
-            Paragraph(sub, sSmall),
-        ]
-
-    kpi_cols = [
-        kpi_cell("MONTO DISPONIBLE",    fmt_money(cr.get("Monto",0)), "convocado"),
-        kpi_cell("VALOR FORMULADO",     fmt_money(v_conv),            "en proyectos", tc=C_BLUE),
-        kpi_cell("COBERTURA",           cob_str,                      "financiera",   tc=C_AMBER),
-        kpi_cell("PROYECTOS",           str(n_p_c),                   "formulados",   tc=C_GREEN),
+    # KPIs: estructura transpuesta → 3 filas × 4 columnas
+    # Fila 0: labels | Fila 1: valores | Fila 2: subtítulos
+    _kpi_defs = [
+        ("MONTO DISPONIBLE", fmt_money(cr.get("Monto",0)), "convocado",    C_DARK),
+        ("VALOR FORMULADO",  fmt_money(v_conv),            "en proyectos", C_BLUE),
+        ("COBERTURA",        cob_str,                      "financiera",   C_AMBER),
+        ("PROYECTOS",        str(n_p_c),                   "formulados",   C_GREEN),
     ]
+    kpi_row0 = [Paragraph(d[0], sKpiLbl) for d in _kpi_defs]
+    kpi_row1 = [Paragraph(d[1], S(f"kv{i}", fontName="Helvetica-Bold", fontSize=15,
+                textColor=d[3], leading=19, alignment=TA_CENTER))
+                for i, d in enumerate(_kpi_defs)]
+    kpi_row2 = [Paragraph(d[2], sSmall) for d in _kpi_defs]
+
     kpi_w = TW / 4
-    kpi_tbl = Table(kpi_cols, colWidths=[kpi_w]*4, rowHeights=[12, 22, 10])
+    # 3 filas × 4 columnas — rowHeights tiene exactamente 3 valores
+    kpi_tbl = Table([kpi_row0, kpi_row1, kpi_row2],
+                    colWidths=[kpi_w]*4, rowHeights=[14, 24, 12])
     kpi_tbl.setStyle(TableStyle([
         ("BACKGROUND",    (0,0), (-1,-1), C_LIGHT),
         ("BACKGROUND",    (1,0), (1,-1),  colors.HexColor("#eef4ff")),
@@ -695,8 +698,8 @@ def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
         ("BOX",           (1,0), (1,-1),  0.5, C_BORDER),
         ("BOX",           (2,0), (2,-1),  0.5, C_BORDER),
         ("BOX",           (3,0), (3,-1),  0.5, C_BORDER),
-        ("TOPPADDING",    (0,0), (-1,-1), 8),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("TOPPADDING",    (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
         ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
     ]))
     story.append(kpi_tbl)
