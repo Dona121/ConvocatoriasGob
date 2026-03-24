@@ -91,16 +91,7 @@ section[data-testid="stSidebar"] .stButton>button:hover{
 [data-testid="stDataFrame"]{
     border-radius:8px;overflow:hidden;
     box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid #e0e0e0;}
-/* chat */
-.chat-user{background:#e8f0fe;border-radius:16px 16px 4px 16px;padding:12px 16px;
-    max-width:80%;font-size:.88rem;color:#1a1a2e;border:1px solid #c5d5f5;}
-.chat-ai{background:#fff;border-radius:16px 16px 16px 4px;padding:14px 18px;
-    max-width:85%;font-size:.88rem;color:#1a1a1a;border:1px solid #e0e0e0;
-    box-shadow:0 2px 6px rgba(0,0,0,.04);}
-.chat-ai-label{font-size:.68rem;color:#1754ab;font-weight:700;
-    letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
-.chat-scroll{max-height:480px;overflow-y:auto;padding:16px;
-    background:#f8f9fb;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:16px;}
+
 </style>""", unsafe_allow_html=True)
 
 # ── Credentials ───────────────────────────────────────────────────────────────
@@ -113,11 +104,6 @@ except Exception:
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlb3JlZHZqcmhjZ3ZucnJ2bmZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzA0MDYsImV4cCI6MjA4ODE0NjQwNn0."
             "h9QNpcbiMXZfeheOAVHtYnC4-n8luCg92s-Xd_BFrZA")
 
-try:
-    GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
-except Exception:
-    GEMINI_API_KEY = ""  # configura en Streamlit Cloud → Settings → Secrets
-GEMINI_MODEL = "gemini-2.0-flash"
 
 BRAND_COLORS = [
     "#17743d","#1754ab","#cf7000","#47b1d5","#d88c16",
@@ -290,9 +276,27 @@ def _ind_table(inds_list):
 # ══════════════════════════════════════════════════════════════════════════════
 # LOAD ALL DATA
 # ══════════════════════════════════════════════════════════════════════════════
+def _calc_estado(fecha_cierre_str):
+    """Calcula estado dinámico igual que el admin Django."""
+    if not fecha_cierre_str or str(fecha_cierre_str).strip() in ("","—","None","nan"):
+        return "Sin fecha"
+    s = str(fecha_cierre_str).strip()
+    # Acepta dd/mm/yyyy o yyyy-mm-dd (primeros 10 chars)
+    for fmt, val in [("%d/%m/%Y", s), ("%Y-%m-%d", s[:10])]:
+        try:
+            import datetime as _dt
+            fc = _dt.datetime.strptime(val, fmt).date()
+            dias = (fc - _dt.date.today()).days
+            if dias < 0:   return "Cerrada"
+            if dias <= 7:  return f"{dias}d para cierre"
+            if dias <= 15: return f"{dias}d para cierre"
+            return "Vigente"
+        except Exception:
+            continue
+    return "—"
+
 @st.cache_data(ttl=300, show_spinner=False)
 def load_all():
-    estados    = {r["id"]: r["estado"]            for r in _fetch("contenido_estado")}
     deps       = {r["id"]: r["dependencia"]       for r in _fetch("contenido_dependencia")}
     resps      = {r["id"]: r["responsable"]       for r in _fetch("contenido_responsable")}
     sectores   = {r["id"]: r["sector"]            for r in _fetch("contenido_sectores")}
@@ -353,6 +357,28 @@ def load_all():
                 "responsable_mga": clf.get("resp",""),
             })
 
+    # ── Fuentes de financiación ──────────────────────────────────────────────
+    clf_fuente = {}
+    for r in _fetch("contenido_clasificacionfuentefinanciacion"):
+        clf_fuente[r["id"]] = {
+            "fuente":  r.get("fuente","—"),
+            "tipo":    r.get("tipo_de_fuente","—"),
+            "subtipo": r.get("subtipo",""),
+        }
+    fuente_d: dict = {}   # {proyecto_id: [{fuente, tipo, subtipo, vigencia, comprometido, pagado}]}
+    for r in _fetch("contenido_fuentefinanciacion"):
+        pid = r.get("proyecto_id")
+        if not pid: continue
+        clf = clf_fuente.get(r.get("fuente_id"), {})
+        fuente_d.setdefault(pid, []).append({
+            "fuente":       clf.get("fuente","—"),
+            "tipo":         clf.get("tipo","—"),
+            "subtipo":      clf.get("subtipo",""),
+            "vigencia":     vigencias.get(r.get("vigencia_id"),"—"),
+            "comprometido": float(r.get("valor_comprometido") or 0),
+            "pagado":       float(r.get("valor_pagado") or 0),
+        })
+
     conv_rows = _fetch("contenido_convocatorias")
     conv_list = []
     for r in conv_rows:
@@ -360,7 +386,7 @@ def load_all():
         conv_list.append({
             "id":                 cid,
             "Convocatoria":       r["nombre_convocatoria"],
-            "Estado":             estados.get(r.get("estado_id"),"—"),
+            "Estado":             _calc_estado(_fdate(r.get("fecha_cierre"))),
             "Fecha apertura":     _fdate(r.get("fecha_apertura")),
             "Fecha cierre":       _fdate(r.get("fecha_cierre")),
             "Monto":              float(r.get("monto") or 0),
@@ -373,6 +399,10 @@ def load_all():
             "Ubicación":          " · ".join(conv_ubi.get(cid,[])),
             "Dependencias":       " · ".join(conv_dep.get(cid,[])),
             "Aliados":            " · ".join(conv_ali.get(cid,[])),
+            "Objetivo":           r.get("objetivo","") or "",
+            "Enlace convocatoria":r.get("enlace_convocatoria","") or "",
+            "Enlace actor":       r.get("enlace_del_actor","") or "",
+            "Estado monto":       "Especifica" if r.get("estado_monto")=="ES" else ("No especifica" if r.get("estado_monto")=="NE" else "—"),
             "N° proyectos":       0,
         })
     df_conv = pd.DataFrame(conv_list) if conv_list else pd.DataFrame()
@@ -388,8 +418,9 @@ def load_all():
             "convocatoria_id":     r.get("convocatoria_id"),
             "Proyecto":            r["nombre_proyecto"],
             "BPIN":                r.get("bpin",""),
-            "Valor":               float(r.get("valor_proyecto") or 0),
-            "Contrapartida":       float(r.get("monto_contrapartida") or 0),
+            "Valor comprometido":  sum(f["comprometido"] for f in fuente_d.get(pid,[])),
+            "Valor pagado":        sum(f["pagado"]       for f in fuente_d.get(pid,[])),
+            "N° fuentes":          len(fuente_d.get(pid,[])),
             "Dependencia":         deps.get(r.get("dependencia_id"),"—"),
             "Responsable":         resps.get(r.get("responsable_id"),"—"),
             "Municipios":          " · ".join(proy_mun.get(pid,[])),
@@ -403,10 +434,10 @@ def load_all():
     if not df_conv.empty and not df_proy.empty and "convocatoria_id" in df_proy.columns:
         cnt = df_proy.groupby("convocatoria_id")["id"].count().to_dict()
         df_conv["N° proyectos"] = df_conv["id"].map(cnt).fillna(0).astype(int)
-        val_cnt = df_proy.groupby("convocatoria_id")["Valor"].sum().to_dict()
-        df_conv["Valor proyectos"] = df_conv["id"].map(val_cnt).fillna(0)
+        val_cnt = df_proy.groupby("convocatoria_id")["Valor comprometido"].sum().to_dict()
+        df_conv["Valor comprometido proyectos"] = df_conv["id"].map(val_cnt).fillna(0)
         df_conv["Cobertura (%)"] = df_conv.apply(
-            lambda row: round(row["Valor proyectos"]/row["Monto"]*100,1) if row["Monto"] else None, axis=1)
+            lambda row: round(row["Valor comprometido proyectos"]/row["Monto"]*100,1) if row["Monto"] else None, axis=1)
 
     proy_names = {r["id"]: r["nombre_proyecto"] for r in proy_rows}
     ind_rows   = []
@@ -425,12 +456,12 @@ def load_all():
         ).rename(columns={"Monto":"Monto convocatoria","Estado":"Estado convocatoria"})
         df_rel = df_rel.drop(columns=[c for c in df_rel.columns if c.endswith("_conv")], errors="ignore")
         df_rel["Cobertura (%)"] = df_rel.apply(
-            lambda row: round(row["Valor"]/row["Monto convocatoria"]*100,1)
-            if row.get("Monto convocatoria",0) else None, axis=1)
+            lambda row: round(row["Valor comprometido"]/row["Monto convocatoria"]*100,1)
+            if float(row.get("Monto convocatoria",0) or 0) else None, axis=1)
     else:
         df_rel = pd.DataFrame()
 
-    return df_conv, df_proy, df_rel, df_ind, ind_d
+    return df_conv, df_proy, df_rel, df_ind, ind_d, fuente_d
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR
@@ -448,7 +479,7 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════════════════════
 with st.spinner("Conectando con Supabase..."):
     try:
-        df_conv, df_proy, df_rel, df_ind, _ind_d = load_all()
+        df_conv, df_proy, df_rel, df_ind, _ind_d, _fuente_d = load_all()
     except Exception as e:
         st.error(f"Error al cargar datos: {e}")
         st.stop()
@@ -467,7 +498,15 @@ with st.sidebar:
     st.markdown('<div style="font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;'
                 'color:#a5d6a7;font-weight:700;margin-bottom:10px">Filtros</div>',
                 unsafe_allow_html=True)
-    sel_est = st.multiselect("Estado convocatoria", estados_opts,  placeholder="Todos")
+    # Estado calculado: agrupar en categorías para el filtro
+    _est_cats = []
+    if not df_conv.empty and "Estado" in df_conv.columns:
+        for e in df_conv["Estado"].unique():
+            if e == "Vigente":   _est_cats.append("Vigente")
+            elif e == "Cerrada": _est_cats.append("Cerrada")
+            elif "para cierre" in str(e): _est_cats.append("Próximas a cerrar")
+    _est_cats = sorted(set(_est_cats))
+    sel_est = st.multiselect("Estado convocatoria", _est_cats, placeholder="Todos")
     sel_sec = st.multiselect("Sector",              sectores_opts, placeholder="Todos")
     sel_dep = st.multiselect("Dependencia",         dep_opts,      placeholder="Todas")
     st.markdown('<hr style="border-color:#1754ab;opacity:.3;margin:20px 0 16px">', unsafe_allow_html=True)
@@ -480,7 +519,13 @@ for _df, _cols in [(df_c, ["id"]), (df_p, ["id","convocatoria_id"])]:
     for _col in _cols:
         if _col in _df.columns:
             _df[_col] = pd.to_numeric(_df[_col], errors="coerce")
-if sel_est:  df_c = df_c[df_c["Estado"].isin(sel_est)]
+if sel_est:
+    def _match_est(e):
+        if "Vigente" in sel_est and e == "Vigente": return True
+        if "Cerrada" in sel_est and e == "Cerrada": return True
+        if "Próximas a cerrar" in sel_est and "para cierre" in str(e): return True
+        return False
+    df_c = df_c[df_c["Estado"].apply(_match_est)]
 if sel_sec:  df_c = df_c[df_c["Sectores"].apply(lambda s: any(x in s for x in sel_sec))]
 if sel_dep:  df_p = df_p[df_p["Dependencia"].isin(sel_dep)]
 if sel_est or sel_sec: df_p = df_p[df_p["convocatoria_id"].isin(df_c["id"])]
@@ -497,7 +542,7 @@ if not df_i.empty and sel_dep:
 n_conv  = df_c["id"].nunique() if not df_c.empty else 0
 n_proy  = df_p["id"].nunique() if not df_p.empty else 0
 m_conv  = df_c["Monto"].sum()  if not df_c.empty else 0
-v_proy  = df_p["Valor"].sum()  if not df_p.empty else 0
+v_proy  = df_p["Valor comprometido"].sum() if not df_p.empty else 0
 n_ind   = len(df_i)            if not df_i.empty else 0
 conv_cp = df_c[df_c["N° proyectos"]>0]["id"].nunique() if not df_c.empty else 0
 pct_cp  = round(conv_cp/max(n_conv,1)*100) if n_conv>0 else 0
@@ -558,7 +603,7 @@ st.markdown(f"""
     {kpi("Proyectos",      n_proy,           "formulados",          style="dark-green", flex="1.5")}
     {kpi("Con proyectos",  f"{conv_cp}",     f"{pct_cp}% de conv.", border_color="#d88c16", flex="1")}
     {kpi("Monto convoc.",  fmt_money(m_conv),"suma total",          border_color="#cf7000", flex="1")}
-    {kpi("Valor proy.",    fmt_money(v_proy),"suma total",          border_color="#47b1d5", flex="1")}
+    {kpi("Comprometido",   fmt_money(v_proy),"suma proyectos",      border_color="#47b1d5", flex="1")}
     {kpi("Indicadores MGA",n_ind,            "registros",           border_color="#1754ab", flex="1")}
 </div>""", unsafe_allow_html=True)
 
@@ -665,7 +710,7 @@ def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
     story.append(Spacer(1, 14))
 
     # ── KPIs en fila ──────────────────────────────────────────────────────────
-    v_conv  = float(cr.get("Valor proyectos", 0) or 0)
+    v_conv  = float(cr.get("Valor comprometido proyectos", 0) or 0)
     cob_val = cr.get("Cobertura (%)")
     cob_str = f"{cob_val:.1f}%" if pd.notna(cob_val) else "—"
     n_p_c   = int(cr.get("N° proyectos", 0))
@@ -674,7 +719,7 @@ def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
     # Fila 0: labels | Fila 1: valores | Fila 2: subtítulos
     _kpi_defs = [
         ("MONTO DISPONIBLE", fmt_money(cr.get("Monto",0)), "convocado",    C_DARK),
-        ("VALOR FORMULADO",  fmt_money(v_conv),            "en proyectos", C_BLUE),
+        ("COMPROMETIDO",     fmt_money(v_conv),            "en proyectos", C_BLUE),
         ("COBERTURA",        cob_str,                      "financiera",   C_AMBER),
         ("PROYECTOS",        str(n_p_c),                   "formulados",   C_GREEN),
     ]
@@ -776,14 +821,14 @@ def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
         story.append(Spacer(1, 8))
 
         # Tabla resumen de proyectos
-        th = [Paragraph(h, sTH) for h in ["Proyecto","Dependencia","Valor","Contrapartida","Beneficiarios","BPIN"]]
+        th = [Paragraph(h, sTH) for h in ["Proyecto","Dependencia","Comprometido","Pagado","Beneficiarios","BPIN"]]
         rows = [th]
         for _, pr in proy_sub.iterrows():
             rows.append([
                 Paragraph(str(pr.get("Proyecto",""))[:70], sTD),
                 Paragraph(str(pr.get("Dependencia","—")), sTD),
-                Paragraph(fmt_money(pr.get("Valor",0)), sTD),
-                Paragraph(fmt_money(pr.get("Contrapartida",0)), sTD),
+                Paragraph(fmt_money(pr.get("Valor comprometido",0)), sTD),
+                Paragraph(fmt_money(pr.get("Valor pagado",0)), sTD),
                 Paragraph(str(int(pr.get("Total beneficiarios",0))), sTD),
                 Paragraph(str(pr.get("BPIN","—")), sTD),
             ])
@@ -851,8 +896,8 @@ def _gen_pdf_convocatoria(cr, proy_sub, ind_d_local):
 # ══════════════════════════════════════════════════════════════════════════════
 # TABS — 4 pestañas, sin Trazabilidad
 # ══════════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Convocatorias", "Proyectos", "Mapa", "Asistente IA", "Exportar",
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Convocatorias", "Proyectos", "Mapa", "Exportar",
 ])
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -941,10 +986,10 @@ with tab1:
                         df_c.set_index("Convocatoria")["N° proyectos"].sort_values(ascending=False),
                         "Proyectos formulados por convocatoria", max_bars=20),
                         unsafe_allow_html=True)
-                if "Valor proyectos" in df_c.columns:
+                if "Valor comprometido proyectos" in df_c.columns:
                     st.markdown(bar_chart(
-                        df_c.set_index("Convocatoria")["Valor proyectos"].sort_values(ascending=False).head(12),
-                        "Valor total formulado por convocatoria (top 12)", fmt_val=fmt_money),
+                        df_c.set_index("Convocatoria")["Valor comprometido proyectos"].sort_values(ascending=False).head(12),
+                        "Valor comprometido por convocatoria (top 12)", fmt_val=fmt_money),
                         unsafe_allow_html=True)
             with fb:
                 if "Cobertura (%)" in df_c.columns:
@@ -994,34 +1039,57 @@ with tab1:
         else:
             cr = row_c.iloc[0]
 
-            # Badges
-            estado_color = "#17743d" if "vigente" in str(cr["Estado"]).lower() else "#cf7000"
-            bdgs = badge(cr["Estado"], estado_color)
+            # Badges — color según estado calculado
+            _e = str(cr["Estado"])
+            if _e == "Vigente":    _ec = "#17743d"
+            elif _e == "Cerrada":  _ec = "#c0392b"
+            else:                  _ec = "#cf7000"   # Xd para cierre
+            bdgs = badge(_e, _ec)
             for s in str(cr.get("Sectores","")).split(" · "):
                 if s.strip(): bdgs += badge(s.strip(), "#1754ab")
             for s in str(cr.get("Segmentos","")).split(" · "):
                 if s.strip(): bdgs += badge(s.strip(), "#47b1d5")
 
             # KPIs de cobertura
-            v_conv   = float(cr.get("Valor proyectos", 0) or 0)
+            v_comp   = float(cr.get("Valor comprometido proyectos", 0) or 0)
             cob_conv = cr.get("Cobertura (%)")
             cob_str  = f"{cob_conv:.1f}%" if pd.notna(cob_conv) else "—"
             n_proy_c = int(cr["N° proyectos"])
+            _em      = str(cr.get("Estado monto","—"))
+
+            # Links de convocatoria
+            _lnk_c = str(cr.get("Enlace convocatoria","")).strip()
+            _lnk_a = str(cr.get("Enlace actor","")).strip()
+            _links_html = ""
+            if _lnk_c and _lnk_c not in ("","—","None"):
+                _links_html += (f'<a href="{_lnk_c}" target="_blank" '
+                    f'style="display:inline-block;background:#1754ab;color:#fff;'
+                    f'border-radius:6px;padding:5px 14px;font-size:.78rem;'
+                    f'text-decoration:none;margin-right:8px;font-weight:600">'
+                    f'Ver convocatoria</a>')
+            if _lnk_a and _lnk_a not in ("","—","None"):
+                _links_html += (f'<a href="{_lnk_a}" target="_blank" '
+                    f'style="display:inline-block;background:#005931;color:#fff;'
+                    f'border-radius:6px;padding:5px 14px;font-size:.78rem;'
+                    f'text-decoration:none;font-weight:600">'
+                    f'Ver actor</a>')
 
             st.markdown(f"""
 <div style="background:#f8fbff;border:1px solid #cce0f5;border-left:5px solid #1754ab;
 border-radius:10px;padding:26px 30px;margin:14px 0 20px">
   <div style="font-family:'DM Serif Display',serif;font-size:1.55rem;color:#003d6c;margin-bottom:10px">
     {cr['Convocatoria']}</div>
-  <div style="margin-bottom:18px">{bdgs}</div>
+  <div style="margin-bottom:14px">{bdgs}</div>
+  {f'<div style="margin-bottom:14px">{_links_html}</div>' if _links_html else ""}
   {stat_grid(
-      ("Monto disponible",      fmt_money(cr['Monto']),  "#005931"),
-      ("Valor formulado",       fmt_money(v_conv),        "#1754ab"),
-      ("Cobertura financiera",  cob_str,                  "#cf7000"),
-      ("Proyectos formulados",  str(n_proy_c),            "#003d6c"),
-      ("Fecha apertura",        cr['Fecha apertura'],     "#444"),
-      ("Fecha cierre",          cr['Fecha cierre'],       "#444"),
+      ("Monto disponible",      fmt_money(cr['Monto'])+" ("+_em+")",  "#005931"),
+      ("Valor comprometido",    fmt_money(v_comp),                     "#1754ab"),
+      ("Cobertura financiera",  cob_str,                               "#cf7000"),
+      ("Proyectos formulados",  str(n_proy_c),                         "#003d6c"),
+      ("Fecha apertura",        cr['Fecha apertura'],                  "#444"),
+      ("Fecha cierre",          cr['Fecha cierre'],                    "#444"),
   )}
+  {field_row("Objetivo",           cr.get("Objetivo",""))}
   {field_row("Qué ofrece",         cr.get("Qué ofrece",""))}
   {field_row("Quiénes participan", cr.get("Quiénes participan",""))}
   {field_row("Público priorizado", cr.get("Público priorizado",""))}
@@ -1060,8 +1128,8 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
                 # Mini-resumen de proyectos: barras de valor
                 if len(proy_sub) > 1:
                     st.markdown(bar_chart(
-                        proy_sub.set_index("Proyecto")["Valor"].sort_values(ascending=False),
-                        "Valor por proyecto", fmt_val=fmt_money, max_bars=15),
+                        proy_sub.set_index("Proyecto")["Valor comprometido"].sort_values(ascending=False),
+                        "Valor comprometido por proyecto", fmt_val=fmt_money, max_bars=15),
                         unsafe_allow_html=True)
 
                 for _, pr in proy_sub.iterrows():
@@ -1071,13 +1139,30 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
 
                     with st.expander(
                         f"**{pr['Proyecto']}** · {pr['Dependencia']} · "
-                        f"{fmt_money(pr['Valor'])} · Cob. {cob_p_str}"
+                        f"Comp. {fmt_money(pr.get('Valor comprometido',0))} · Cob. {cob_p_str}"
                     ):
                         e1,e2,e3,e4 = st.columns(4)
-                        e1.metric("Valor",         fmt_money(pr["Valor"]))
-                        e2.metric("Contrapartida", fmt_money(pr.get("Contrapartida",0)))
+                        e1.metric("Comprometido",  fmt_money(pr.get("Valor comprometido",0)))
+                        e2.metric("Pagado",        fmt_money(pr.get("Valor pagado",0)))
                         e3.metric("Beneficiarios", int(pr.get("Total beneficiarios",0)))
                         e4.metric("BPIN",          pr.get("BPIN","—"))
+                        # Tabla de fuentes de financiación
+                        _pid_exp = int(pr["id"])
+                        _fts_exp = _fuente_d.get(_pid_exp, [])
+                        if _fts_exp:
+                            st.markdown(
+                                '<div style="font-size:.78rem;font-weight:600;color:#005931;'
+                                'margin:12px 0 6px">Fuentes de financiación</div>',
+                                unsafe_allow_html=True)
+                            df_fts = pd.DataFrame(_fts_exp)
+                            df_fts["comprometido"] = df_fts["comprometido"].apply(fmt_money)
+                            df_fts["pagado"]       = df_fts["pagado"].apply(fmt_money)
+                            df_fts = df_fts.rename(columns={
+                                "fuente":"Fuente","tipo":"Tipo","subtipo":"Subtipo",
+                                "vigencia":"Vigencia","comprometido":"Comprometido","pagado":"Pagado"})
+                            st.dataframe(df_fts.reset_index(drop=True),
+                                use_container_width=True, hide_index=True,
+                                column_config={"Fuente": st.column_config.TextColumn(width=220)})
 
                         fh = ""
                         for f,lbl in [("Responsable","Responsable"),
@@ -1153,11 +1238,11 @@ with tab2:
                 st.markdown(bar_chart(df_p["Dependencia"].value_counts(),
                     "Por dependencia", max_bars=15), unsafe_allow_html=True)
                 st.markdown(bar_chart(
-                    df_p.nlargest(15,"Valor").set_index("Proyecto")["Valor"],
-                    "Top 15 por valor", fmt_val=fmt_money), unsafe_allow_html=True)
+                    df_p.nlargest(15,"Valor comprometido").set_index("Proyecto")["Valor comprometido"],
+                    "Top 15 por valor comprometido", fmt_val=fmt_money), unsafe_allow_html=True)
                 if not df_r.empty:
-                    vxd = df_r.groupby("Dependencia")["Valor"].sum().sort_values(ascending=False)
-                    st.markdown(bar_chart(vxd, "Valor total formulado por dependencia",
+                    vxd = df_r.groupby("Dependencia")["Valor comprometido"].sum().sort_values(ascending=False)
+                    st.markdown(bar_chart(vxd, "Valor comprometido por dependencia",
                         fmt_val=fmt_money, max_bars=15), unsafe_allow_html=True)
             with pb:
                 st.markdown(donut_chart(df_p["Responsable"].value_counts(),
@@ -1198,15 +1283,16 @@ with tab2:
                                 unsafe_allow_html=True)
 
         st.markdown(sec_title("Directorio de proyectos"), unsafe_allow_html=True)
-        ps = ["Proyecto","BPIN","Valor","Contrapartida","Dependencia","Responsable",
+        ps = ["Proyecto","BPIN","Valor comprometido","Valor pagado","N° fuentes","Dependencia","Responsable",
               "Municipios","Total beneficiarios","N° indicadores MGA"]
         ps = [c for c in ps if c in df_p_busq.columns]
         st.dataframe(df_p_busq[ps].reset_index(drop=True), use_container_width=True, height=420,
             hide_index=True,
             column_config={
                 "Proyecto":            st.column_config.TextColumn(width=280),
-                "Valor":               st.column_config.NumberColumn("Valor $",       format="$ %d"),
-                "Contrapartida":       st.column_config.NumberColumn("Contrapartida", format="$ %d"),
+                "Valor comprometido": st.column_config.NumberColumn("Comprometido $", format="$ %d"),
+                "Valor pagado":        st.column_config.NumberColumn("Pagado $",       format="$ %d"),
+                "N° fuentes":          st.column_config.NumberColumn("Fuentes",         width=80),
                 "Total beneficiarios": st.column_config.NumberColumn("Beneficiarios", width=110),
                 "N° indicadores MGA":  st.column_config.NumberColumn("Indicadores",   width=100),
             })
@@ -1233,8 +1319,9 @@ with tab2:
             # Badges
             bdgs_p = badge(rp["Dependencia"], "#1754ab")
             if conv_row is not None:
-                est_c = "#17743d" if "vigente" in str(conv_row["Estado"]).lower() else "#cf7000"
-                bdgs_p += badge(conv_row["Estado"], est_c)
+                _e2 = str(conv_row["Estado"])
+                est_c = "#17743d" if _e2=="Vigente" else ("#c0392b" if _e2=="Cerrada" else "#cf7000")
+                bdgs_p += badge(_e2, est_c)
             for m in str(rp.get("Municipios","")).split(" · "):
                 if m.strip(): bdgs_p += badge(m.strip(), "#47b1d5")
 
@@ -1245,12 +1332,12 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
     {rp['Proyecto']}</div>
   <div style="margin-bottom:18px">{bdgs_p}</div>
   {stat_grid(
-      ("Valor del proyecto",   fmt_money(rp['Valor']),                  "#005931"),
-      ("Contrapartida",        fmt_money(rp.get('Contrapartida',0)),    "#444"),
-      ("Cobertura convoc.",    cob_proy_str,                            "#cf7000"),
+      ("Valor comprometido",   fmt_money(rp.get('Valor comprometido',0)), "#005931"),
+      ("Valor pagado",         fmt_money(rp.get('Valor pagado',0)),       "#17743d"),
+      ("Cobertura convoc.",    cob_proy_str,                              "#cf7000"),
       ("Total beneficiarios",  str(int(rp.get('Total beneficiarios',0))), "#1754ab"),
-      ("BPIN",                 rp.get('BPIN','—'),                      "#444"),
-      ("Responsable",          rp.get('Responsable','—'),               "#444"),
+      ("BPIN",                 rp.get('BPIN','—'),                        "#444"),
+      ("Responsable",          rp.get('Responsable','—'),                 "#444"),
   )}
   {field_row("Dependencia",         rp.get("Dependencia",""))}
   {field_row("Municipios",          rp.get("Municipios",""))}
@@ -1261,7 +1348,8 @@ border-radius:10px;padding:26px 30px;margin:14px 0 20px">
             # Card de convocatoria vinculada
             if conv_row is not None:
                 mc_v   = float(conv_row.get("Monto",0) or 0)
-                est_c  = "#17743d" if "vigente" in str(conv_row["Estado"]).lower() else "#cf7000"
+                _e3 = str(conv_row["Estado"])
+                est_c  = "#17743d" if _e3=="Vigente" else ("#c0392b" if _e3=="Cerrada" else "#cf7000")
                 st.markdown(f"""
 <div style="background:#f8fbff;border:1px solid #cce0f5;border-left:5px solid #1754ab;
 border-radius:10px;padding:20px 26px;margin-bottom:20px">
@@ -1284,6 +1372,30 @@ border-radius:10px;padding:20px 26px;margin-bottom:20px">
   {field_row("Aliados",            conv_row.get("Aliados",""))}
   {field_row("Contacto",           conv_row.get("Contacto",""))}
 </div>""", unsafe_allow_html=True)
+
+            # Fuentes de financiación del proyecto
+            _fts_proy = _fuente_d.get(pid_sel, [])
+            if _fts_proy:
+                st.markdown(sec_title("Fuentes de financiación",
+                    f"{len(_fts_proy)} fuente(s) registradas"),
+                    unsafe_allow_html=True)
+                df_fts_p = pd.DataFrame(_fts_proy)
+                _tot_comp = df_fts_p["comprometido"].sum()
+                _tot_pag  = df_fts_p["pagado"].sum()
+                _fc1, _fc2 = st.columns(2)
+                _fc1.metric("Total comprometido", fmt_money(_tot_comp))
+                _fc2.metric("Total pagado",       fmt_money(_tot_pag))
+                df_fts_p["comprometido"] = df_fts_p["comprometido"].apply(fmt_money)
+                df_fts_p["pagado"]       = df_fts_p["pagado"].apply(fmt_money)
+                df_fts_p = df_fts_p.rename(columns={
+                    "fuente":"Fuente","tipo":"Tipo","subtipo":"Subtipo",
+                    "vigencia":"Vigencia","comprometido":"Comprometido","pagado":"Pagado"})
+                st.dataframe(df_fts_p.reset_index(drop=True),
+                    use_container_width=True, hide_index=True,
+                    column_config={"Fuente": st.column_config.TextColumn(width=240)})
+            else:
+                st.markdown(empty_state("Sin fuentes de financiación registradas."),
+                            unsafe_allow_html=True)
 
             # Indicadores MGA del proyecto
             inds_sel = _ind_d.get(pid_sel, [])
@@ -1365,7 +1477,7 @@ with tab3:
                 if m not in mun_data:
                     mun_data[m] = {"proyectos": [], "convocatorias": set(), "valor": 0, "beneficiarios": 0}
                 mun_data[m]["proyectos"].append(row["Proyecto"])
-                mun_data[m]["valor"]        += float(row.get("Valor",0) or 0)
+                mun_data[m]["valor"]        += float(row.get("Valor comprometido",0) or 0)
                 mun_data[m]["beneficiarios"]+= int(row.get("Total beneficiarios",0) or 0)
                 cid = row.get("convocatoria_id")
                 if cid:
@@ -1422,7 +1534,7 @@ with tab3:
                     if mn not in mun_data_filtrado:
                         mun_data_filtrado[mn] = {"proyectos":[], "convocatorias":set(), "valor":0, "beneficiarios":0}
                     mun_data_filtrado[mn]["proyectos"].append(row["Proyecto"])
-                    mun_data_filtrado[mn]["valor"]        += float(row.get("Valor",0) or 0)
+                    mun_data_filtrado[mn]["valor"]        += float(row.get("Valor comprometido",0) or 0)
                     mun_data_filtrado[mn]["beneficiarios"]+= int(row.get("Total beneficiarios",0) or 0)
                     cid2 = row.get("convocatoria_id")
                     if cid2:
@@ -1667,144 +1779,9 @@ with tab3:
                     })
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TAB 4 · ASISTENTE IA (Gemini)
+# TAB 4 · EXPORTAR
 # ─────────────────────────────────────────────────────────────────────────────
 with tab4:
-    st.markdown(sec_title("Asistente IA",
-        "Consulta los datos de convocatorias y proyectos en lenguaje natural · Powered by Gemini"),
-        unsafe_allow_html=True)
-
-    @st.cache_data(ttl=300, show_spinner=False)
-    def _build_context(ch, ph):
-        def _to_csv(df, name, max_rows=300):
-            if df is None or df.empty: return f"[{name}: sin datos]\n"
-            cols = [c for c in df.columns if c not in ("id","convocatoria_id","proyecto_id")]
-            return f"=== {name.upper()} ({len(df)} registros) ===\n{df[cols].head(max_rows).to_csv(index=False)}\n"
-        ctx  = _to_csv(df_conv, "Convocatorias")
-        ctx += _to_csv(df_proy, "Proyectos")
-        ctx += _to_csv(df_rel,  "Relaciones (Convocatoria–Proyecto)")
-        ctx += _to_csv(df_ind,  "Indicadores MGA")
-        return ctx
-
-    _ch = str(len(df_conv)) + str(int(df_conv["id"].max()) if not df_conv.empty else 0)
-    _ph = str(len(df_proy)) + str(int(df_proy["id"].max()) if not df_proy.empty else 0)
-    data_context = _build_context(_ch, _ph)
-
-    SYSTEM_PROMPT = f"""Eres un asistente de análisis de datos especializado en convocatorias \
-y proyectos de la Secretaría de Planeación (SDP) de Bogotá.
-
-Tienes acceso a la base de datos completa cargada desde Supabase:
-
-{data_context}
-
-INSTRUCCIONES:
-- Responde siempre en español, de forma clara y concisa.
-- Extrae la respuesta directamente de los datos. No inventes cifras.
-- Si la respuesta incluye una tabla, usa Markdown con columnas alineadas.
-- Puedes calcular: sumas, promedios, porcentajes, rankings, filtros por sector/estado/dependencia.
-- Respuestas máximo 400 palabras salvo que el usuario pida más detalle.
-"""
-
-    def _call_gemini(messages):
-        import urllib.request, json as _json
-        url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-               f"{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}")
-        contents = [
-            {"role":"user",  "parts":[{"text":f"[CONTEXTO]\n{SYSTEM_PROMPT}"}]},
-            {"role":"model", "parts":[{"text":"Entendido. Listo para responder sobre la SDP."}]},
-        ]
-        for m in messages:
-            contents.append({"role": m["role"], "parts":[{"text": m["content"]}]})
-        body = _json.dumps({
-            "contents": contents,
-            "generationConfig": {"temperature":0.3,"maxOutputTokens":1500,"topP":0.9},
-        }).encode()
-        req = urllib.request.Request(url, data=body, headers={"Content-Type":"application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = _json.loads(resp.read())
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        except urllib.error.HTTPError as e:
-            err = e.read().decode()
-            return f"Error HTTP {e.code}: {err[:300]}"
-        except Exception as ex:
-            return f"Error al conectar con Gemini: {ex}"
-
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    suggestions = [
-        "¿Cuántas convocatorias hay vigentes?",
-        "¿Cuál es el sector con más convocatorias?",
-        "Lista los 5 proyectos de mayor valor",
-        "¿Cuánto suman los proyectos por dependencia?",
-        "¿Qué convocatorias no tienen proyectos?",
-        "¿Cuál es el promedio de cobertura financiera?",
-        "¿Cuáles son los indicadores MGA más usados?",
-        "Resumen general de la base de datos",
-    ]
-
-    st.markdown('<div style="font-size:.8rem;color:#666;font-weight:600;margin-bottom:10px">'
-                'Preguntas sugeridas:</div>', unsafe_allow_html=True)
-    cols_s = st.columns(4)
-    for idx, sug in enumerate(suggestions):
-        if cols_s[idx%4].button(sug, key=f"sug_{idx}", use_container_width=True):
-            st.session_state.chat_history.append({"role":"user","content":sug})
-            with st.spinner("Consultando Gemini..."):
-                resp = _call_gemini(st.session_state.chat_history)
-            st.session_state.chat_history.append({"role":"model","content":resp})
-            st.rerun()
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if st.session_state.chat_history:
-        chat_html = '<div class="chat-scroll">'
-        for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                chat_html += (f'<div style="display:flex;justify-content:flex-end;margin:8px 0">'
-                              f'<div class="chat-user">{msg["content"]}</div></div>')
-            else:
-                chat_html += (f'<div style="display:flex;justify-content:flex-start;margin:8px 0">'
-                              f'<div class="chat-ai">'
-                              f'<div class="chat-ai-label">Gemini · Asistente IA</div>'
-                              f'<div style="white-space:pre-wrap">{msg["content"]}</div>'
-                              f'</div></div>')
-        chat_html += '</div>'
-        st.markdown(chat_html, unsafe_allow_html=True)
-    else:
-        st.markdown(
-            '<div style="background:#f0f8fb;border:1px dashed #47b1d5;border-radius:10px;'
-            'padding:30px;text-align:center;color:#666;margin-bottom:16px">'
-            'Escribe una pregunta o usa las sugerencias para empezar</div>',
-            unsafe_allow_html=True)
-
-    col_inp, col_btn, col_clr = st.columns([6,1,1])
-    with col_inp:
-        user_input = st.text_input("Pregunta", placeholder="Ej: ¿Cuál es el estado con más convocatorias?",
-                                   key="chat_input", label_visibility="collapsed")
-    with col_btn:
-        send = st.button("Enviar", type="primary", use_container_width=True)
-    with col_clr:
-        if st.button("Limpiar", use_container_width=True):
-            st.session_state.chat_history = []; st.rerun()
-
-    if send and user_input.strip():
-        st.session_state.chat_history.append({"role":"user","content":user_input.strip()})
-        with st.spinner("Consultando Gemini..."):
-            resp = _call_gemini(st.session_state.chat_history)
-        st.session_state.chat_history.append({"role":"model","content":resp})
-        st.rerun()
-
-    st.markdown(
-        f'<div style="font-size:.72rem;color:#aaa;margin-top:8px;text-align:right">'
-        f'Contexto: {len(data_context):,} caracteres · '
-        f'{len(df_conv)} convocatorias · {len(df_proy)} proyectos · {len(df_ind)} indicadores </div>',
-        unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 5 · EXPORTAR
-# ─────────────────────────────────────────────────────────────────────────────
-with tab5:
     st.markdown(sec_title("Exportar Reporte Maestro",
         "Generación de sábana de datos consolidada (.xlsx)"), unsafe_allow_html=True)
 
@@ -1839,14 +1816,14 @@ with tab5:
                 ("Convocatorias", ec, [
                     "Convocatoria","Estado","Fecha apertura","Fecha cierre","Monto",
                     "Sectores","Segmentos","Ubicación","Dependencias","Aliados",
-                    "N° proyectos","Valor proyectos","Cobertura (%)","Contacto",
+                    "N° proyectos","Valor comprometido proyectos","Cobertura (%)","Contacto",
                     "Qué ofrece","Quiénes participan","Público priorizado"]),
                 ("Proyectos", ep, [
-                    "Proyecto","BPIN","Valor","Contrapartida","Dependencia","Responsable",
+                    "Proyecto","BPIN","Valor comprometido","Valor pagado","N° fuentes","Dependencia","Responsable",
                     "Municipios","Total beneficiarios","Tipos beneficiarios",
                     "N° indicadores MGA","Indicadores MGA"]),
                 ("Relaciones", er, [
-                    "Convocatoria","Estado convocatoria","Sectores","Proyecto","BPIN","Valor",
+                    "Convocatoria","Estado convocatoria","Sectores","Proyecto","BPIN","Valor comprometido",
                     "Dependencia","Responsable","Fecha apertura","Fecha cierre","Cobertura (%)"]),
                 ("Indicadores MGA", ei, [
                     "Proyecto","codigo","nombre","vigencia","meta_proyecto","meta_cuatrienio",
